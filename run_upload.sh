@@ -8,4 +8,4 @@ export SECRET_2=
 # export CLIENT_ID=
 # export STORAGE_ACCOUNT=
 
-python upload.py --project_code=AIA00TEST --input_path=test/1234 --container_string= --output_json_name=output.json
+python upload.py --project_code=AIA00TEST --input_path=test/1234 --container_string=

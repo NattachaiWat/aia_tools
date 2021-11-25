@@ -39,11 +39,15 @@ class AzureBlob:
         self._BLOB_CLIENT = BlobServiceClient.from_connection_string(self.conn_str)
 
     def upload(self, container, blob, path_file):
-        dir_blob = os.path.dirname(path_file)
-        if len(dir_blob) != 0:
-            blob = path_file.replace(dir_blob, blob)
-        else:
-            blob = path_file
+        # dir_blob = os.path.dirname(path_file)
+        # if len(dir_blob) != 0:
+            # blob = path_file.replace(dir_blob, blob)
+        # else:
+            # blob = path_file
+
+        basename = os.path.basename(path_file)
+        blob = os.path.join(blob,basename)
+
         blob_client = self._BLOB_CLIENT.get_blob_client(container=container, blob=blob)
         # print("\nUploading to Azure Storage as blob:\n\t" + path_file)
         with open(path_file, "rb") as data:

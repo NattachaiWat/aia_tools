@@ -10,7 +10,6 @@ parser.add_argument('--project_code', type=str, default='None', help='')
 parser.add_argument('--input_path', type=str, default='None', help='')
 parser.add_argument('--container_string', type=str, default='None', help='')
 parser.add_argument('--az_crediential', type=str, default='None', help='')
-parser.add_argument('--output_json_name', type=str, default='output.json', help='')
 
 args = parser.parse_args()
 
@@ -19,11 +18,14 @@ project_code = args.project_code
 input_path = args.input_path
 container_string = args.container_string
 az_crediential = args.az_crediential
-output_json_name = args.output_json_name
 print("project_code:",project_code,type(project_code))
 print("input_path:",input_path,type(input_path))
 print("container_string:",container_string,type(container_string))
 print("az_crediential:",az_crediential,type(az_crediential))
+
+main_folder_az = f'research/data/{project_code}'
+output_json_name = f'{project_code}.json'
+output_json_folder_az = f'research/data/label_config'
 
 def save_json(json_data, path_output_json):
     with open(path_output_json, 'w', encoding='utf8') as json_file:
@@ -47,7 +49,7 @@ def find_file(folder=None,type_file=["xlsx"],remove_main_path=False):
                     path_blob = main_folder
                     if remove_main_path == True:
                         path_blob = str(main_folder)[len(folder)+1:]
-                    list_path_blob_file.append(os.path.join(project_code,path_blob,file))
+                    list_path_blob_file.append(os.path.join(main_folder_az,path_blob,file))
                     list_path_file.append(os.path.join(main_folder,file))
                     list_file_name.append(os.path.basename(file))
 
@@ -128,15 +130,21 @@ def upload_file_to_blob(check_image=True):
         print(i+1,'/',len(list_path_excel),"status:",status,"url:",url)
     print('-'*20)
     
-
     json_output = {
         'project_code':project_code,
         'excel_path_az':list_path_blob_excel,
         'image_path_az':list_file_name_image_check_blob,
         'container_string':container_string
     }
-    print(json_output)
+
     save_json(json_output, output_json_name)
+
+    print('-'*10,'Upload json','-'*10)
+    status, url = upload_to_blob(container_string, output_json_folder_az, output_json_name)
+    print("status:",status,"url:",url)
+    print('-'*20)
+
+    print(json_output)
 
 if __name__ == '__main__':
     upload_file_to_blob(check_image=False)

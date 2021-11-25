@@ -23,9 +23,9 @@ print("input_path:",input_path,type(input_path))
 print("container_string:",container_string,type(container_string))
 print("az_crediential:",az_crediential,type(az_crediential))
 
-main_folder_az = f'research/data/{project_code}'
+main_folder_az = '/'.join(['research','data',project_code])
 output_json_name = f'{project_code}.json'
-output_json_folder_az = f'research/data/label_config'
+output_json_folder_az = '/'.join(['research','data','label_config'])
 
 def save_json(json_data, path_output_json):
     with open(path_output_json, 'w', encoding='utf8') as json_file:
@@ -38,10 +38,11 @@ def find_file(folder=None,type_file=["xlsx"],remove_main_path=False):
     if folder is None:
         return list_path_file
     
-    folder_find_images = os.path.join(folder,'images')
-    folder_find_excel = os.path.join(folder,'excel')
+    folder_find_images = '/'.join([folder,'images'])
+    folder_find_excel = '/'.join([folder,'excel'])
 
     for main_folder,sub_folder,list_file in os.walk(folder):
+        main_folder = str(main_folder).replace('\\','/') 
         if str(main_folder).find(folder_find_images) == 0 or (str(main_folder).find(folder_find_excel) == 0 and "xlsx" in type_file):
             for file in list_file:
                 type_file_split = str(os.path.basename(file)).split('.')[-1]
@@ -49,8 +50,8 @@ def find_file(folder=None,type_file=["xlsx"],remove_main_path=False):
                     path_blob = main_folder
                     if remove_main_path == True:
                         path_blob = str(main_folder)[len(folder)+1:]
-                    list_path_blob_file.append(os.path.join(main_folder_az,path_blob,file))
-                    list_path_file.append(os.path.join(main_folder,file))
+                    list_path_blob_file.append('/'.join([main_folder_az,path_blob,file]))
+                    list_path_file.append('/'.join([main_folder,file]))
                     list_file_name.append(os.path.basename(file))
 
     return list_path_file,list_file_name,list_path_blob_file
@@ -102,8 +103,8 @@ def check_file_image(folder=None,header_name="filename"):
 
 def upload_file_to_blob(check_image=True):
     print('')
-    assert os.path.exists(os.path.join(input_path,'images')) ,'Image folder not found'
-    assert os.path.exists(os.path.join(input_path,'excel')) ,'Excel folder not found'
+    assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
+    assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'
 
     list_file_name_image_check_local,\
         list_path_excel,\
@@ -118,14 +119,16 @@ def upload_file_to_blob(check_image=True):
              
     print('-'*10,'Upload image','-'*10)
     for i, local_image_path in enumerate(list_file_name_image_check_local):
-        folder_blob = '/'.join(str(list_file_name_image_check_blob[i]).split('/')[:-1])
+        folder_blob = os.path.dirname(list_file_name_image_check_blob[i])
+        folder_blob = str(folder_blob).replace('\\','/')
         status, url = upload_to_blob(container_string, folder_blob, local_image_path)
         print(i+1,'/',len(list_file_name_image_check_local),"status:",status,"url:",url)
     print('-'*20)
     
     print('-'*10,'Upload excel','-'*10)
     for i, local_excel_path in enumerate(list_path_excel):
-        folder_blob = '/'.join(str(list_path_blob_excel[i]).split('/')[:-1])
+        folder_blob = os.path.dirname(list_path_blob_excel[i])
+        folder_blob = str(folder_blob).replace('\\','/')
         status, url = upload_to_blob(container_string, folder_blob, local_excel_path)
         print(i+1,'/',len(list_path_excel),"status:",status,"url:",url)
     print('-'*20)

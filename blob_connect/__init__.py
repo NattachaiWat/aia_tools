@@ -46,7 +46,7 @@ class AzureBlob:
             # blob = path_file
 
         basename = os.path.basename(path_file)
-        blob = os.path.join(blob,basename)
+        blob = '/'.join([blob,basename])
 
         blob_client = self._BLOB_CLIENT.get_blob_client(container=container, blob=blob)
         # print("\nUploading to Azure Storage as blob:\n\t" + path_file)

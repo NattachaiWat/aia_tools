@@ -132,11 +132,13 @@ def upload_file_to_blob(check_image=True):
         status, url = upload_to_blob(container_string, folder_blob, local_excel_path)
         print(i+1,'/',len(list_path_excel),"status:",status,"url:",url)
     print('-'*20)
+
+    image_path_az = os.path.dirname(list_file_name_image_check_blob[0])
     
     json_output = {
         'project_code':project_code,
         'excel_path_az':list_path_blob_excel,
-        'image_path_az':list_file_name_image_check_blob,
+        'image_path_az':image_path_az,
         'container_string':container_string
     }
 

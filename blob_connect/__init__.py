@@ -14,29 +14,35 @@ BLOB_KEY = os.getenv("SECRET_2")
 CLIENT_ID = os.getenv("CLIENT_ID")
 STORAGE_ACCOUNT = os.getenv("STORAGE_ACCOUNT")
 
-class AzureBlob:
-    def __init__(self):
-        blob_account = os.getenv("BLOB_ACCOUNT")
-        blob_key = os.getenv("BLOB_KEY")
-        if CLIENT_ID is not None:
-            default_credential = DefaultAzureCredential(managed_identity_client_id=CLIENT_ID)
-            account_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net"
-            self._BLOB_CLIENT = BlobServiceClient(account_url=account_url, credential=default_credential)
-            return
-        elif blob_account is None or blob_key is None:
-            credential = DefaultAzureCredential()
-            vault_url = f'https://{KEY_VAULT_ACCOUNT}.vault.azure.net'
-            vault_client = SecretClient(vault_url=vault_url, credential=credential)
-            blob_account = vault_client.get_secret(BLOB_ACCOUNT).value
-            blob_key = vault_client.get_secret(BLOB_KEY).value
-            os.environ["BLOB_ACCOUNT"] = blob_account
-            os.environ["BLOB_KEY"] = blob_key
+CONNECTION_STRING = os.getenv('CONNECTION_STRING', None)
 
-        self.account_name = blob_account
-        self.account_key = blob_key + '=='
-        self.conn_str = f"DefaultEndpointsProtocol=https;AccountName={self.account_name};" \
-                        f"AccountKey={self.account_key};EndpointSuffix=core.windows.net"
-        self._BLOB_CLIENT = BlobServiceClient.from_connection_string(self.conn_str)
+class AzureBlob:
+    def __init__(self, conn_str = CONNECTION_STRING):
+        if conn_str is None:
+            blob_account = os.getenv("BLOB_ACCOUNT")
+            blob_key = os.getenv("BLOB_KEY")
+            if CLIENT_ID is not None:
+                default_credential = DefaultAzureCredential(managed_identity_client_id=CLIENT_ID)
+                account_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net"
+                self._BLOB_CLIENT = BlobServiceClient(account_url=account_url, credential=default_credential)
+                return
+            elif blob_account is None or blob_key is None:
+                credential = DefaultAzureCredential()
+                vault_url = f'https://{KEY_VAULT_ACCOUNT}.vault.azure.net'
+                vault_client = SecretClient(vault_url=vault_url, credential=credential)
+                blob_account = vault_client.get_secret(BLOB_ACCOUNT).value
+                blob_key = vault_client.get_secret(BLOB_KEY).value
+                os.environ["BLOB_ACCOUNT"] = blob_account
+                os.environ["BLOB_KEY"] = blob_key
+
+            self.account_name = blob_account
+            self.account_key = blob_key + '=='
+            self.conn_str = f"DefaultEndpointsProtocol=https;AccountName={self.account_name};" \
+                            f"AccountKey={self.account_key};EndpointSuffix=core.windows.net"
+            self._BLOB_CLIENT = BlobServiceClient.from_connection_string(self.conn_str)
+        elif isinstance(conn_str, str):
+            self.conn_str = conn_str
+            self._BLOB_CLIENT = BlobServiceClient.from_connection_string(self.conn_str)
 
     def upload(self, container, blob, path_file):
         # dir_blob = os.path.dirname(path_file)

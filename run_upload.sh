@@ -4,7 +4,7 @@ export AZURE_CLIENT_SECRET=
 export KEY_VAULT_ACCOUNT=
 export SECRET_1=
 export SECRET_2=
-
+export CONNECTION_STRING=
 # export CLIENT_ID=
 # export STORAGE_ACCOUNT=
 

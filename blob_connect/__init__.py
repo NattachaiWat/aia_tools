@@ -1,4 +1,10 @@
 import os
+import logging
+log_file = os.getenv('log_file', 'logging.log') 
+logging.basicConfig(filename = log_file, 
+                      filemode = 'w+', 
+                      level = logging.INFO, 
+                      format = '%(asctime)s.%(msecs)03d - %(name)s - %(levelname)s - %(message)s')
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
 

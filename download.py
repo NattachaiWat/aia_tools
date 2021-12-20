@@ -15,9 +15,12 @@ args = parser.parse_args()
 
 def download_azblob(url, local_path):
   o = urlparse(url, allow_fragments=False)
-  container_name = o.hostname.lstrip('.').split('.')[0]
+  
+  container_name = o.path.lstrip('/').split('/')[0]
   subfolder = o.path.lstrip('/').split('/')[0]
   endpoint = '/'.join(o.path.lstrip('/').split('/')[1:])
+
+
 
   save_file = os.path.join(local_path, endpoint)
   save_path = os.path.dirname(save_file)
@@ -25,6 +28,7 @@ def download_azblob(url, local_path):
     os.makedirs(save_path)
   
   conn = AzureBlob()
+
   blob_container = conn._BLOB_CLIENT.get_container_client(container_name)
   try:
     file_content = blob_container.get_blob_client(endpoint).download_blob().readall()

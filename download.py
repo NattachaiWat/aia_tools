@@ -5,6 +5,7 @@ import os
 import argparse
 from urllib.parse import urlparse
 import json
+import traceback
 
 parser = argparse.ArgumentParser(description='Download file from azure blob storage.')
 parser.add_argument('--save_path', type=str, default='.', help='')
@@ -31,8 +32,9 @@ def download_azblob(url, local_path):
       file.write(file_content)
       return True, save_file
   except ResourceNotFoundError:
-      raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
-      return False, save_file
+    print(traceback.format_exc())
+    raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
+    return False, save_file
 
 
 if __name__ == '__main__':

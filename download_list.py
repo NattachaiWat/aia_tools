@@ -23,7 +23,7 @@ def download_azblob(url, local_path):
 
   save_file = os.path.join(local_path, endpoint)
   save_path = os.path.dirname(save_file)
-  os.makedirs(save_path, exists_ok=True)
+  os.makedirs(save_path, exist_ok = True)
   
   conn = AzureBlob()
 
@@ -35,7 +35,8 @@ def download_azblob(url, local_path):
       return True, save_file
   except ResourceNotFoundError:
     print(traceback.format_exc())
-    raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
+    #raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
+    return True, save_file
 
 
 
@@ -49,10 +50,11 @@ if __name__ == '__main__':
     print(f"saved: {list_path}")
 
   with open(list_path,'r') as fp:
-    path = fp.readline()
-    status, local_path = download_azblob(url = args.url,
-                          local_path = args.save_path)
-    if status:
-      print(f"saved: {local_path}")
-    else:
-      print(f'Cannot download: {path}')
+    for path in fp.readlines():
+      path = path.replace('\n','')
+      status, local_path = download_azblob(url = path,
+                            local_path = args.save_path)
+      if status:
+        print(f"saved: {local_path}")
+      else:
+        print(f'Cannot download: {path}')

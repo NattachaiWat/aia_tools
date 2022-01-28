@@ -135,27 +135,32 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
     for i, (singel_part, billitem_part) in enumerate(zip(single_df_list, billitem_df_list)):
         df_single = pd.concat(singel_part, ignore_index=True)
         df_billitem = pd.concat(billitem_part, ignore_index=True)
+        
+        df_single.image_id = range(df_single.shape[0])
+        df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
+        
         df_partition.append((df_single, df_billitem))
-
+        
     return df_partition
 
 def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.DataFrame]:
-    single_df_list = [[] for _ in list_path_excel]
+    single_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
         df_single = df_dict.get('single')
         
-        num_row = df_single.shape[0]
-        idx_list = get_split_list(list(range(num_row)), num_partition)
-        for idx in idx_list:
+        idx_list = get_split_list(list(df_single.image_id.values), num_partition)
+        for j, idx in enumerate(idx_list):
             temp_df_single = df_single.iloc[idx]
-            single_df_list[i].append(temp_df_single)
+            single_df_list[j].append(temp_df_single)
     
     df_partition = []
     for i, singel_part in enumerate(single_df_list):
         df_single = pd.concat(singel_part, ignore_index=True)
+        df_single.image_id = range(df_single.shape[0])
+        
         df_partition.append(df_single)
-    
+        
     return df_partition
 
 def partition_excel(list_path_excel:List[str], num_partition:int, project_code:str, input_folder:str) -> str:

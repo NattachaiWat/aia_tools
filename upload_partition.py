@@ -176,6 +176,11 @@ def partition_excel(list_path_excel:List[str], num_partition:int, project_code:s
     save_folder = osp.join(input_folder, "partition")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
+    else: # partition file exist
+        excel_path_list = sorted([osp.join(save_folder,f) for f in os.listdir(save_folder) if f.endswith('.xlsx')])
+        if excel_path_list:
+            print('Partitioned Excel file already exist.')
+            return excel_path_list
     
     excel_path_list = []
     if temp_dict.get('BILLINGITEMS') is None:
@@ -203,6 +208,7 @@ def main(args):
     input_path = args.input_path
     container_string = args.container_string
     num_partition = args.num_partition
+    partition_idx = args.partition_idx
     az_crediential = args.az_crediential
     
     main_folder_az = f"research/data/{project_code}"
@@ -222,22 +228,27 @@ def main(args):
     assert error_check == False,'Some images were not found in the folder.'
     
     partitioned_excel_path_list = partition_excel(list_path_excel, num_partition, project_code, input_path)
-    print(partitioned_excel_path_list)
+    print("All partitioned excel files:", partitioned_excel_path_list)
+    # choose one of partitioned file
+    partitioned_excel_path_list = partitioned_excel_path_list[partition_idx:partition_idx+1]
+    print(f"upload excel index {partition_idx}:", partitioned_excel_path_list)
 
     # Upload image and excel
     print('-'*10,'Upload image','-'*10)
     folder_blob_list = [osp.dirname(path) for path in list_file_name_image_check_blob]
-    thread_upload(container_string, folder_blob_list, list_file_name_image_check_local)
+    status = thread_upload(container_string, folder_blob_list, list_file_name_image_check_local)
+    print('upload image status', status)
     
     print('-'*10,'Upload excel','-'*10)
-    folder_blob_list = [osp.dirname(path) for path in list_path_blob_excel]
-    thread_upload(container_string, folder_blob_list, partitioned_excel_path_list)
+    folder_blob_list = [f"research/data/{project_code}/excel" for _ in partitioned_excel_path_list]
+    status = thread_upload(container_string, folder_blob_list, partitioned_excel_path_list)
+    print('upload excel status', status)
     
     # upload json
     image_path_az = osp.dirname(list_file_name_image_check_blob[0])
     json_output = {
         'project_code':project_code,
-        'excel_path_az':list_path_blob_excel,
+        'excel_path_az':partitioned_excel_path_list,
         'image_path_az':image_path_az,
         'container_string':container_string
     }
@@ -258,6 +269,7 @@ if __name__ == "__main__":
     parser.add_argument('--input_path', type=str, default='None', help='')
     parser.add_argument('--container_string', type=str, default='None', help='')
     parser.add_argument('--num_partition', type=int, default=10, help='number of partition from each excel file to use for dividing')
+    parser.add_argument('--partition_idx', type=int, default=0, help='index of partition to upload (start from 0)')
     parser.add_argument('--az_crediential', type=str, default='None', help='')
     args = parser.parse_args()
 

@@ -194,29 +194,32 @@ def partition_excel(list_path_excel:List[str], num_partition:int, project_code:s
     #        print('Partitioned Excel file already exist.')
     #        return excel_path_list
     
+    temp_dict = list()
+    for excel_file in list_path_excel:
+        temp_dict += list(pd.read_excel(excel_file, sheet_name=None).keys())
+        temp_dict = list(set(temp_dict))
+    temp_dict = set([s.lower() for s in temp_dict])
+    print(temp_dict)
     excel_path_list = []
-
-    main_sheetnames = ['SINGLE', 'BILLINGITEMS']
-    for sheetname in main_sheetnames:
-        if sheetname == 'SINGLE':
-            # for single sheet
-            print('check: single')
-            df_partition = partition_single(list_path_excel, num_partition)
-            for i, df_part in enumerate(df_partition):
-                save_path = f"{project_code}_{i}of{num_partition}.xlsx"
-                excel_path_list.append(save_path)
-                with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
-                    df_part.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
-        else: 
-            # for billing items
-            print('check: billing items')
-            df_partition = partition_billitem(list_path_excel, num_partition)
-            for i, (df_single, df_billitem) in enumerate(df_partition):
-                save_path = f"{project_code}_{i}of{num_partition}.xlsx"
-                excel_path_list.append(save_path)
-                with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
-                    df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
-                    df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
+    if temp_dict == {'single'}:
+        # for single sheet
+        #print('check: single')
+        df_partition = partition_single(list_path_excel, num_partition)
+        for i, df_part in enumerate(df_partition):
+            save_path = f"{project_code}_{i}of{num_partition}.xlsx"
+            excel_path_list.append(save_path)
+            with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
+                df_part.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
+    else: 
+        # for billing items
+        #print('check: billing items')
+        df_partition = partition_billitem(list_path_excel, num_partition)
+        for i, (df_single, df_billitem) in enumerate(df_partition):
+            save_path = f"{project_code}_{i}of{num_partition}.xlsx"
+            excel_path_list.append(save_path)
+            with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
+                df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
+                df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
     
     return excel_path_list
 
@@ -252,6 +255,34 @@ def get_imagefiles_from_excel(excel_file, local_image_path):
     for image_file in list(set(image_list)):
         fullpath.append(os.path.join(local_image_path,image_file))
     return fullpath
+
+def edit_image_id(excel_file: str, partitioned_images_index: dict):
+    sheetnames = pd.read_excel(excel_file,
+                                sheet_name = None,
+                                engine = 'openpyxl',
+                                na_filter=False).keys()
+    pandas_data = { }
+    for sheetname in sheetnames:
+        if sheetname.lower() == 'single':
+            sheetname = sheetname.lower()
+        else:
+            sheetname = sheetname.upper()
+        pandas_data[sheetname] = pd.read_excel(excel_file,
+                                              sheet_name = sheetname,
+                                              engine = 'openpyxl',
+                                              na_filter = False,
+                                              dtype=str)
+        pandas_data[sheetname] = pandas_data[sheetname].loc[:, ~pandas_data[sheetname].columns.str.contains('^Unnamed')].to_dict()
+      
+        for idx, f in pandas_data[sheetname]['filename'].items():
+            #print(idx,f, pandas_data[sheetname]['image_id'][idx], partitioned_images_index[f])
+            pandas_data[sheetname]['image_id'][idx] = partitioned_images_index[f]
+
+    with pd.ExcelWriter(excel_file) as writer:
+        for sheetname, data in pandas_data.items():
+            pd_output = pd.DataFrame(data)
+            pd_output.to_excel(writer, sheet_name = sheetname, engine='openpyxl', index=False)
+        
 
 def main(args):
     # get all arguments
@@ -301,7 +332,8 @@ def main(args):
         partitioned_images_list += get_imagefiles_from_excel(excel_fullpath, local_image_path)
    
     # Clean duplicate images
-    partitioned_images_list = list(set(partitioned_images_list))
+    partitioned_images_list = sorted(list(set(partitioned_images_list)))
+
 
     # Upload image and excel
     print('-'*10,'Upload image','-'*10)

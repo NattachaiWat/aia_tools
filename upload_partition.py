@@ -8,6 +8,7 @@ import pandas as pd
 from multiprocessing.pool import ThreadPool
 
 from blob_connect import upload_to_blob
+from urllib.parse import urlparse
 
 NUM_PROCESSORS = 10
 
@@ -104,9 +105,8 @@ def thread_upload(container_string:str,
     
     container_string_list = [container_string for _ in folder_blob_list]
     list_work = zip(container_string_list, folder_blob_list, local_file_path_list)
-
+    print(f'Uploading: #{len(local_file_path_list)}')
     with ThreadPool(processes=num_process) as pool:
-
         result = pool.starmap(upload_to_blob, list_work)
 
     return result
@@ -119,8 +119,15 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
     billitem_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
-        df_single = df_dict.get('single')
-        df_billitem = df_dict.get('BILLINGITEMS')
+        sheetnames = df_dict.keys()
+        print(sheetnames)
+        for sheetname in sheetnames:
+            if sheetname.lower() == 'single':
+                df_single = df_dict.get(sheetname)
+            elif sheetname.lower() == 'billingitems':
+                df_billitem = df_dict.get(sheetname)
+            else:
+                raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
         
         idx_list = get_split_list(list(df_single.image_id.values), num_partition)
         for j, idx in enumerate(idx_list):
@@ -140,6 +147,7 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
         df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
         
         df_partition.append((df_single, df_billitem))
+    
         
     return df_partition
 
@@ -147,7 +155,11 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
     single_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
-        df_single = df_dict.get('single')
+        if 'single' in df_dict:
+            df_single = df_dict.get('single')
+        elif 'SINGLE' in df_dict:
+            df_single = df_dict.get('SINGLE')
+
         
         idx_list = get_split_list(list(df_single.image_id.values), num_partition)
         for j, idx in enumerate(idx_list):
@@ -160,7 +172,7 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
         df_single.image_id = range(df_single.shape[0])
         
         df_partition.append(df_single)
-        
+
     return df_partition
 
 def partition_excel(list_path_excel:List[str], num_partition:int, project_code:str, input_folder:str) -> str:
@@ -171,36 +183,75 @@ def partition_excel(list_path_excel:List[str], num_partition:int, project_code:s
         list_path_excel (List[str]): [description]
         num_partition (int): [description]
     """
-    temp_dict = pd.read_excel(list_path_excel[0], sheet_name=None)
+    
     
     save_folder = osp.join(input_folder, "partition")
     if not osp.exists(save_folder):
         os.makedirs(save_folder)
-    else: # partition file exist
-        excel_path_list = sorted([osp.join(save_folder,f) for f in os.listdir(save_folder) if f.endswith('.xlsx')])
-        if excel_path_list:
-            print('Partitioned Excel file already exist.')
-            return excel_path_list
+    #else: # partition file exist
+    #    excel_path_list = sorted([osp.join(save_folder,f) for f in os.listdir(save_folder) if f.endswith('.xlsx')])
+    #    if excel_path_list:
+    #        print('Partitioned Excel file already exist.')
+    #        return excel_path_list
     
     excel_path_list = []
-    if temp_dict.get('BILLINGITEMS') is None:
-        df_partition = partition_single(list_path_excel, num_partition)
-        for i, df_part in enumerate(df_partition):
-            save_path = f"{project_code}_{i}of{num_partition}.xlsx"
-            excel_path_list.append(save_path)
-            with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
-                df_part.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
-    else:
-        df_partition = partition_billitem(list_path_excel, num_partition)
-        for i, (df_single, df_billitem) in enumerate(df_partition):
-            save_path = f"{project_code}_{i}of{num_partition}.xlsx"
-            excel_path_list.append(save_path)
-            with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
-                df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
-                df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
+
+    main_sheetnames = ['SINGLE', 'BILLINGITEMS']
+    for sheetname in main_sheetnames:
+        if sheetname == 'SINGLE':
+            # for single sheet
+            print('check: single')
+            df_partition = partition_single(list_path_excel, num_partition)
+            for i, df_part in enumerate(df_partition):
+                save_path = f"{project_code}_{i}of{num_partition}.xlsx"
+                excel_path_list.append(save_path)
+                with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
+                    df_part.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
+        else: 
+            # for billing items
+            print('check: billing items')
+            df_partition = partition_billitem(list_path_excel, num_partition)
+            for i, (df_single, df_billitem) in enumerate(df_partition):
+                save_path = f"{project_code}_{i}of{num_partition}.xlsx"
+                excel_path_list.append(save_path)
+                with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
+                    df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
+                    df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
     
     return excel_path_list
 
+def get_az_endpoint(az_path: List):
+    endpoint_list = list()
+    for status, url in az_path:
+        if status:
+            o = urlparse(url, allow_fragments=False)
+            subfolder = o.path.lstrip('/').split('/')[0]
+            endpoint = '/'.join(o.path.lstrip('/').split('/')[1:])
+            endpoint_list.append(endpoint)
+
+    return endpoint_list
+
+def get_imagefiles_from_excel(excel_file, local_image_path):
+    sheetnames = pd.read_excel(excel_file,  sheet_name = None,
+                                engine = 'openpyxl',
+                                na_filter=False)
+    image_list = list()
+    for sheetname in sheetnames:
+        pandas_data= pd.read_excel(excel_file,
+                                              sheet_name = sheetname,
+                                              engine = 'openpyxl',
+                                              na_filter = False,
+                                              dtype=str)
+        if 'filename' in  pandas_data:
+            if len(pandas_data.get('filename')) > 0:                             
+                image_list += list(pandas_data.get('filename'))
+        elif 'filename'.upper() in pandas_data:
+            if len(pandas_data.get('filename'.upper())) > 0:   
+                image_list += list(pandas_data.get('filename'.upper()))
+    fullpath = []
+    for image_file in list(set(image_list)):
+        fullpath.append(os.path.join(local_image_path,image_file))
+    return fullpath
 
 def main(args):
     # get all arguments
@@ -208,12 +259,14 @@ def main(args):
     input_path = args.input_path
     container_string = args.container_string
     num_partition = args.num_partition
-    partition_idx = args.partition_idx
+    partition_idx = [int(_idx) for _idx in args.partition_idx.split(',')] 
     az_crediential = args.az_crediential
     
-    main_folder_az = f"research/data/{project_code}"
+    main_folder_az = '/'.join(['research','data',project_code])
     output_json_name = f'{project_code}.json'
-    output_json_folder_az = f"research'data/label_config"
+    output_json_folder_az = '/'.join(['research','data','label_config'])
+    excel_folder_az = '/'.join(['research','data',project_code,'excel'])
+    image_folder_az = '/'.join(['research','data',project_code,'images'])
     
     check_file_result = check_file_image(main_folder_az, folder=input_path,header_name="filename")
     list_file_name_image_check_local,\
@@ -227,29 +280,45 @@ def main(args):
     assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'
     assert error_check == False,'Some images were not found in the folder.'
     
+    local_image_path = os.path.join(input_path, 'images')
+    partition_folder = os.path.join(input_path, "partition")
+    
     partitioned_excel_path_list = partition_excel(list_path_excel, num_partition, project_code, input_path)
     print("All partitioned excel files:", partitioned_excel_path_list)
     # choose one of partitioned file
-    partitioned_excel_path_list = partitioned_excel_path_list[partition_idx:partition_idx+1]
-    print(f"upload excel index {partition_idx}:", partitioned_excel_path_list)
+    selected_excels = list()
+    for _idx in partition_idx:
+        selected_excels += partitioned_excel_path_list[_idx:_idx+1]
+    
+    print(f"Selected partitioned excel files: {selected_excels}")
+
+
+    partitioned_images_list = list()
+    partitioned_excel_list  = list()
+    for excel_path in selected_excels:
+        excel_fullpath = os.path.join(partition_folder, excel_path)
+        partitioned_excel_list.append(excel_fullpath)
+        partitioned_images_list += get_imagefiles_from_excel(excel_fullpath, local_image_path)
+   
+    # Clean duplicate images
+    partitioned_images_list = list(set(partitioned_images_list))
 
     # Upload image and excel
     print('-'*10,'Upload image','-'*10)
-    folder_blob_list = [osp.dirname(path) for path in list_file_name_image_check_blob]
-    status = thread_upload(container_string, folder_blob_list, list_file_name_image_check_local)
-    print('upload image status', status)
+    folder_blob_list = [image_folder_az]*len(partitioned_images_list)
+    status = thread_upload(container_string, folder_blob_list, partitioned_images_list)
+    #print('upload image status', status)
     
     print('-'*10,'Upload excel','-'*10)
-    folder_blob_list = [f"research/data/{project_code}/excel" for _ in partitioned_excel_path_list]
-    status = thread_upload(container_string, folder_blob_list, partitioned_excel_path_list)
-    print('upload excel status', status)
+    folder_blob_list = [excel_folder_az]*len(partitioned_excel_list)
+    uploaded_excel = thread_upload(container_string, folder_blob_list, partitioned_excel_list)
+    #print('upload excel status', status)
     
     # upload json
-    image_path_az = osp.dirname(list_file_name_image_check_blob[0])
     json_output = {
         'project_code':project_code,
-        'excel_path_az':partitioned_excel_path_list,
-        'image_path_az':image_path_az,
+        'excel_path_az':get_az_endpoint(az_path = uploaded_excel),
+        'image_path_az':image_folder_az,
         'container_string':container_string
     }
     save_json(json_output, output_json_name)
@@ -269,8 +338,12 @@ if __name__ == "__main__":
     parser.add_argument('--input_path', type=str, default='None', help='')
     parser.add_argument('--container_string', type=str, default='None', help='')
     parser.add_argument('--num_partition', type=int, default=10, help='number of partition from each excel file to use for dividing')
-    parser.add_argument('--partition_idx', type=int, default=0, help='index of partition to upload (start from 0)')
+    parser.add_argument('--partition_idx', type=str,  
+                            default=0, help='index of partition to upload (start from 0)')
     parser.add_argument('--az_crediential', type=str, default='None', help='')
     args = parser.parse_args()
+    partition_idx = [int(partition_idx) for partition_idx in args.partition_idx.split(',')] 
+    for _idx in partition_idx:
+        assert _idx in range(args.num_partition), f"partition_idx [{partition_idx}] not in {range(args.num_partition)}"
 
     main(args)

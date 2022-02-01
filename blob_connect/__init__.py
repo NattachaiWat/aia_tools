@@ -155,7 +155,9 @@ def upload_to_blob(container, blob, path_file):
 
     """
     azure_blob = AzureBlob()
+    #print(f'Uploading: {path_file}')
     success, blob_url = azure_blob.upload(container, blob, path_file)
+    #print(f'Uploaded: {blob_url} {success}')
     return success, blob_url
 
 

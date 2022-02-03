@@ -31,6 +31,8 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
     list_file_name_image_check_local = []
     list_file_name_image_check_blob = []
 
+    images_no_found = list()
+    checking_string = list()
     for path_file_read in list_path_excel:
         result = pd.read_excel(path_file_read, index_col=None, header=None)
         rows,columns = result.shape
@@ -39,7 +41,12 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
             if result[i_columns][0] == header_name:
                 i_header_name = i_columns
                 break
-        assert i_header_name is not None, f'header [{header_name}][{path_file_read}]'
+
+        if i_header_name is None:
+            printout = f'WARNING: {header_name} column in not found in {path_file_read}.'
+            checking_string.append(printout)
+            continue
+
         list_image_name_excel = list(result[i_header_name][1:])
         num_filename_excel += len(list_image_name_excel)
         
@@ -55,11 +62,18 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                     str(file_name_image).strip() != '' and \
                     str(file_name_image).lower() != 'none' and \
                     file_name_image is not None:
-
-                    print(file_name_image,"is not in folder",folder)
+                    printout = f'WARNING: In "{path_file_read}", "{file_name_image}" is not found from "{folder}"'
+                    checking_string.append(printout)
+                    images_no_found.append(file_name_image)
                     error_check = True
     
-    return list_file_name_image_check_local,list_path_excel,list_file_name_image_check_blob,list_path_blob_excel,error_check
+    return list_file_name_image_check_local, \
+            list_path_excel, \
+            list_file_name_image_check_blob, \
+            list_path_blob_excel, \
+            error_check, \
+            list(set(images_no_found)), \
+            checking_string    
 
 def find_file(main_folder_az, folder=None, type_file=["xlsx"],remove_main_path=False):
     list_path_blob_file = []
@@ -114,7 +128,9 @@ def thread_upload(container_string:str,
 def get_split_list(lst, size):
     return [list(i) for i in np.array_split(lst, size)]
 
-def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
+def partition_billitem(list_path_excel:List[str], 
+                        num_partition:int, 
+                        images_no_found: List[str]) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
     single_df_list = [[] for _ in range(num_partition)]
     billitem_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
@@ -124,21 +140,25 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
         for sheetname in sheetnames:
             if sheetname.lower() == 'single':
                 df_single = df_dict.get(sheetname)
+                #remove filename is not found
+                df_single = df_single[~df_single['filename'].isin(images_no_found)]
             elif sheetname.lower() == 'billingitems':
                 df_billitem = df_dict.get(sheetname)
+                # remove filename is not found!
+                df_billitem = df_billitem[~df_billitem['filename'].isin(images_no_found)]
             else:
                 raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
         
         idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
             temp_df_single = df_single.iloc[idx]
+
             image_idx = temp_df_single.image_id.values
             single_df_list[j].append(temp_df_single)
             
             temp_df_billingitem = df_billitem[df_billitem['image_id'].isin(image_idx)]
             billitem_df_list[j].append(temp_df_billingitem)
-    print(single_df_list)
-    print(billitem_df_list)
+
     df_partition = []
     for i, (singel_part, billitem_part) in enumerate(zip(single_df_list, billitem_df_list)):
         df_single = pd.concat(singel_part, ignore_index=True)
@@ -176,7 +196,11 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
 
     return df_partition
 
-def partition_excel(list_path_excel:List[str], num_partition:int, project_code:str, input_folder:str) -> str:
+def partition_excel(list_path_excel:List[str], 
+                        num_partition:int, 
+                        project_code:str, 
+                        input_folder:str,
+                        images_no_found: List[str]) -> str:
     """
     แบ่งแต่ละ excel ไฟล์ที่อยู่ใน list_path_excel เป็นส่วนๆเป็นจำนวน num_partition ส่วน
     แล้วเอาส่วนที่ i ของแต่ละไฟล์มา merge รวมกันแล้ว save excel แต่ละส่วน
@@ -200,12 +224,11 @@ def partition_excel(list_path_excel:List[str], num_partition:int, project_code:s
         temp_dict += list(pd.read_excel(excel_file, sheet_name=None).keys())
         temp_dict = list(set(temp_dict))
     temp_dict = set([s.lower() for s in temp_dict])
-    print(temp_dict)
     excel_path_list = []
     if temp_dict == {'single'}:
         # for single sheet
         #print('check: single')
-        df_partition = partition_single(list_path_excel, num_partition)
+        df_partition = partition_single(list_path_excel, num_partition, images_no_found)
         for i, df_part in enumerate(df_partition):
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
@@ -214,7 +237,7 @@ def partition_excel(list_path_excel:List[str], num_partition:int, project_code:s
     else: 
         # for billing items
         #print('check: billing items')
-        df_partition = partition_billitem(list_path_excel, num_partition)
+        df_partition = partition_billitem(list_path_excel, num_partition, images_no_found)
         for i, (df_single, df_billitem) in enumerate(df_partition):
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
@@ -321,19 +344,26 @@ def main(args):
         list_path_excel,\
         list_file_name_image_check_blob,\
         list_path_blob_excel,\
-        error_check = check_file_result
+        error_check, \
+        images_no_found, \
+        printoutputs = check_file_result \
+        
     
     # assertion
     assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
     assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'
-    assert error_check == False,'Some images were not found in the folder.'
+    #assert error_check == False,'Some images were not found in the folder.'
     sheet_filename_checked = check_filename_billing(list_path_excel)
     assert sheet_filename_checked == {}, f"File name in 'BILLINGITEM' sheet not in 'single' sheet:\n{sheet_filename_checked}"
     
     local_image_path = os.path.join(input_path, 'images')
     partition_folder = os.path.join(input_path, "partition")
     
-    partitioned_excel_path_list = partition_excel(list_path_excel, num_partition, project_code, input_path)
+    partitioned_excel_path_list = partition_excel(list_path_excel, 
+                                                    num_partition, 
+                                                    project_code, 
+                                                    input_path,
+                                                    images_no_found)
     print("All partitioned excel files:", partitioned_excel_path_list)
     # choose one of partitioned file
     selected_excels = list()
@@ -364,6 +394,12 @@ def main(args):
     folder_blob_list = [excel_folder_az]*len(partitioned_excel_list)
     uploaded_excel = thread_upload(container_string, folder_blob_list, partitioned_excel_list)
     #print('upload excel status', status)
+
+    if len(printoutputs) > 0:
+        print(f'---------- WARNING -----------')
+        for printout in printoutputs:
+            print(printout)
+        print(f'------------------------------')
     
     # upload json
     json_output = {

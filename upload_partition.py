@@ -39,7 +39,7 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
             if result[i_columns][0] == header_name:
                 i_header_name = i_columns
                 break
-
+        assert i_header_name is not None, f'header [{header_name}][{path_file_read}]'
         list_image_name_excel = list(result[i_header_name][1:])
         num_filename_excel += len(list_image_name_excel)
         
@@ -129,7 +129,7 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
             else:
                 raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
         
-        idx_list = get_split_list(list(df_single.image_id.values), num_partition)
+        idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
             temp_df_single = df_single.iloc[idx]
             image_idx = temp_df_single.image_id.values
@@ -137,7 +137,8 @@ def partition_billitem(list_path_excel:List[str], num_partition:int) -> List[Tup
             
             temp_df_billingitem = df_billitem[df_billitem['image_id'].isin(image_idx)]
             billitem_df_list[j].append(temp_df_billingitem)
-    
+    print(single_df_list)
+    print(billitem_df_list)
     df_partition = []
     for i, (singel_part, billitem_part) in enumerate(zip(single_df_list, billitem_df_list)):
         df_single = pd.concat(singel_part, ignore_index=True)
@@ -161,7 +162,7 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
             df_single = df_dict.get('SINGLE')
 
         
-        idx_list = get_split_list(list(df_single.image_id.values), num_partition)
+        idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
             temp_df_single = df_single.iloc[idx]
             single_df_list[j].append(temp_df_single)

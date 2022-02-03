@@ -283,7 +283,23 @@ def edit_image_id(excel_file: str, partitioned_images_index: dict):
         for sheetname, data in pandas_data.items():
             pd_output = pd.DataFrame(data)
             pd_output.to_excel(writer, sheet_name = sheetname, engine='openpyxl', index=False)
-        
+
+def check_filename_billing(list_path_excel:str) -> dict:
+    return_output = {}
+    for path in list_path_excel:
+        df_dict = pd.read_excel(path, sheet_name=None)
+        df_single = df_dict.get('single')
+        df_billitem = df_dict.get('BILLINGITEMS')
+        if df_billitem is None:
+            continue
+        for _, row in df_billitem.iterrows():
+            if row['filename'] not in df_single['filename'].tolist():
+                if path in return_output:
+                    if row['filename'] not in return_output[path]:
+                        return_output[path].append(row['filename'])
+                else:
+                    return_output[path] = [row['filename']]
+    return return_output        
 
 def main(args):
     # get all arguments
@@ -311,6 +327,8 @@ def main(args):
     assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
     assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'
     assert error_check == False,'Some images were not found in the folder.'
+    sheet_filename_checked = check_filename_billing(list_path_excel)
+    assert sheet_filename_checked == {}, f"File name in 'BILLINGITEM' sheet not in 'single' sheet:\n{sheet_filename_checked}"
     
     local_image_path = os.path.join(input_path, 'images')
     partition_folder = os.path.join(input_path, "partition")

@@ -33,23 +33,26 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
 
     images_no_found = list()
     checking_string = list()
+    
+    excel_ok = list()
     for path_file_read in list_path_excel:
-        result = pd.read_excel(path_file_read, index_col=None, header=None)
-        rows,columns = result.shape
-        i_header_name = None
-        for i_columns in range(columns):
-            if result[i_columns][0] == header_name:
-                i_header_name = i_columns
+        excel_data = pd.read_excel(path_file_read, sheet_name = None)
+        ignore_file = False
+        images_in_excel = list()
+        for sheetname, tables  in excel_data.items():
+            if header_name not in tables.columns:
+                ignore_file = True
+                checking_string.append(f'Warning: filename is not in {path_file_read} in [{sheetname}]')
                 break
+            else:
+                images_in_excel += list(tables.get(header_name).values)
 
-        if i_header_name is None:
-            printout = f'WARNING: {header_name} column in not found in {path_file_read}.'
-            checking_string.append(printout)
+        if ignore_file:
             continue
+        excel_ok.append(path_file_read)
 
-        list_image_name_excel = list(result[i_header_name][1:])
+        list_image_name_excel = list(set(images_in_excel))
         num_filename_excel += len(list_image_name_excel)
-        
         
         for file_name_image in list_image_name_excel:
             if file_name_image in list_file_name_image:
@@ -68,7 +71,7 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                     error_check = True
     
     return list_file_name_image_check_local, \
-            list_path_excel, \
+            excel_ok, \
             list_file_name_image_check_blob, \
             list_path_blob_excel, \
             error_check, \
@@ -161,13 +164,14 @@ def partition_billitem(list_path_excel:List[str],
 
     df_partition = []
     for i, (singel_part, billitem_part) in enumerate(zip(single_df_list, billitem_df_list)):
-        df_single = pd.concat(singel_part, ignore_index=True)
-        df_billitem = pd.concat(billitem_part, ignore_index=True)
-        
-        df_single.image_id = range(df_single.shape[0])
-        df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
-        
-        df_partition.append((df_single, df_billitem))
+        if len(singel_part) > 0 and len(billitem_part) > 0:
+            df_single = pd.concat(singel_part, ignore_index=True)
+            df_billitem = pd.concat(billitem_part, ignore_index=True)
+            
+            df_single.image_id = range(df_single.shape[0])
+            df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
+            
+            df_partition.append((df_single, df_billitem))
     
         
     return df_partition
@@ -189,10 +193,11 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
     
     df_partition = []
     for i, singel_part in enumerate(single_df_list):
-        df_single = pd.concat(singel_part, ignore_index=True)
-        df_single.image_id = range(df_single.shape[0])
-        
-        df_partition.append(df_single)
+        if len(singel_part) > 0:
+            df_single = pd.concat(singel_part, ignore_index=True)
+            df_single.image_id = range(df_single.shape[0])
+            
+            df_partition.append(df_single)
 
     return df_partition
 
@@ -311,10 +316,16 @@ def check_filename_billing(list_path_excel:str) -> dict:
     return_output = {}
     for path in list_path_excel:
         df_dict = pd.read_excel(path, sheet_name=None)
-        df_single = df_dict.get('single')
-        df_billitem = df_dict.get('BILLINGITEMS')
+
+        for sheetname in df_dict.keys():
+            if sheetname.lower() == 'single':
+                df_single = df_dict.get(sheetname)
+            elif sheetname.lower() == 'billingitems':
+                df_billitem = df_dict.get(sheetname)
+            
         if df_billitem is None:
             continue
+
         for _, row in df_billitem.iterrows():
             if row['filename'] not in df_single['filename'].tolist():
                 if path in return_output:
@@ -348,7 +359,6 @@ def main(args):
         images_no_found, \
         printoutputs = check_file_result \
         
-    
     # assertion
     assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
     assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'

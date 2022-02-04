@@ -40,9 +40,14 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
         ignore_file = False
         images_in_excel = list()
         for sheetname, tables  in excel_data.items():
+            if sheetname.lower() not in ['single', 'billingitems']:
+                ignore_file = True
+                checking_string.append(f'Warning:Wrong format: {sheetname} not in ["SINGLE", "{"billingitems".upper()}"] in {path_file_read}')
+                break
+
             if header_name not in tables.columns:
                 ignore_file = True
-                checking_string.append(f'Warning: filename is not in {path_file_read} in [{sheetname}]')
+                checking_string.append(f'Warning:Wrong format: filename is not in {path_file_read} in [{sheetname}]')
                 break
             else:
                 images_in_excel += list(tables.get(header_name).values)
@@ -65,7 +70,7 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                     str(file_name_image).strip() != '' and \
                     str(file_name_image).lower() != 'none' and \
                     file_name_image is not None:
-                    printout = f'WARNING: In "{path_file_read}", "{file_name_image}" is not found from "{folder}"'
+                    printout = f'WARNING: image is not found in"{path_file_read}", "{file_name_image}" is not found from "{folder}"'
                     checking_string.append(printout)
                     images_no_found.append(file_name_image)
                     error_check = True

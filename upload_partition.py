@@ -176,7 +176,8 @@ def partition_billitem(list_path_excel:List[str],
         
     return df_partition
 
-def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.DataFrame]:
+def partition_single(list_path_excel:List[str], num_partition:int,
+                     images_no_found: List[str]) -> List[pd.DataFrame]:
     single_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
@@ -184,7 +185,17 @@ def partition_single(list_path_excel:List[str], num_partition:int) -> List[pd.Da
             df_single = df_dict.get('single')
         elif 'SINGLE' in df_dict:
             df_single = df_dict.get('SINGLE')
-
+        else:
+            sheetnames = df_dict.keys()
+            df_single = None
+            for sheetname in sheetnames:
+                if sheetname.lower() == 'single':
+                    df_single = df_dict.get(sheetname)
+                    break
+            if df_single is None:
+                continue
+             
+        df_single = df_single[~df_single['filename'].isin(images_no_found)]
         
         idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
@@ -230,6 +241,7 @@ def partition_excel(list_path_excel:List[str],
         temp_dict = list(set(temp_dict))
     temp_dict = set([s.lower() for s in temp_dict])
     excel_path_list = []
+    print(temp_dict)
     if temp_dict == {'single'}:
         # for single sheet
         #print('check: single')
@@ -363,8 +375,8 @@ def main(args):
     assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
     assert os.path.exists('/'.join([input_path,'excel'])) ,'Excel folder not found'
     #assert error_check == False,'Some images were not found in the folder.'
-    sheet_filename_checked = check_filename_billing(list_path_excel)
-    assert sheet_filename_checked == {}, f"File name in 'BILLINGITEM' sheet not in 'single' sheet:\n{sheet_filename_checked}"
+    #sheet_filename_checked = check_filename_billing(list_path_excel)
+    #assert sheet_filename_checked == {}, f"File name in 'BILLINGITEM' sheet not in 'single' sheet:\n{sheet_filename_checked}"
     
     local_image_path = os.path.join(input_path, 'images')
     partition_folder = os.path.join(input_path, "partition")

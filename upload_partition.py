@@ -48,7 +48,7 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
 
             if header_name not in tables.columns:
                 ignore_file = True
-                checking_string.append(f'Warning:Wrong format: filename is not in {path_file_read} in [{sheetname}]')
+                checking_string.append(f'Warning:Wrong format: the filename column is not in {path_file_read} in [{sheetname}]')
                 break
             else:
                 images_in_excel += list(tables.get(header_name).values)
@@ -142,6 +142,7 @@ def partition_billitem(list_path_excel:List[str],
                         images_no_found: List[str]) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
     single_df_list = [[] for _ in range(num_partition)]
     billitem_df_list = [[] for _ in range(num_partition)]
+    error_str = list()
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
         sheetnames = df_dict.keys()
@@ -158,15 +159,30 @@ def partition_billitem(list_path_excel:List[str],
             else:
                 raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
 
+        # check filename in not in single
+        filenames_in_single = list(set(df_single.filename.values))
+        image_files_missing = list()
+        for filename in list(set(df_billitem.filename.values)):
+            if filename not in filenames_in_single:
+                image_files_missing.append(filename) 
+
+        # remove file
+        if len(image_files_missing) > 0:
+            df_billitem = df_billitem[~df_billitem['filename'].isin(image_files_missing)]
+
+            # printout
+            for image_missing in  image_files_missing:
+                error_str.append(f'WARNGING: image file missing in {path}:  {image_missing} in billingitems sheet is not found in single sheet')
+      
         
         idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
             temp_df_single = df_single.iloc[idx]
 
             image_idx = temp_df_single.image_id.values
-            single_df_list[j].append(temp_df_single)
-            
             temp_df_billingitem = df_billitem[df_billitem['image_id'].isin(image_idx)]
+
+            single_df_list[j].append(temp_df_single)
             billitem_df_list[j].append(temp_df_billingitem)
 
     df_partition = []
@@ -179,9 +195,9 @@ def partition_billitem(list_path_excel:List[str],
                 df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
                 df_partition.append((df_single, df_billitem))
             except Exception as err:
-                print(f'Warning:partition:  {traceback.format_exc()}')
+                print(f'Warning: partition in {i}:  {traceback.format_exc()}')
         
-    return df_partition
+    return df_partition,error_str
 
 def partition_single(list_path_excel:List[str], num_partition:int,
                      images_no_found: List[str]) -> List[pd.DataFrame]:
@@ -217,7 +233,7 @@ def partition_single(list_path_excel:List[str], num_partition:int,
             
             df_partition.append(df_single)
 
-    return df_partition
+    return df_partition, list()
 
 def partition_excel(list_path_excel:List[str], 
                         num_partition:int, 
@@ -252,7 +268,7 @@ def partition_excel(list_path_excel:List[str],
     if temp_dict == {'single'}:
         # for single sheet
         #print('check: single')
-        df_partition = partition_single(list_path_excel, num_partition, images_no_found)
+        df_partition, error_str = partition_single(list_path_excel, num_partition, images_no_found)
         for i, df_part in enumerate(df_partition):
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
@@ -261,7 +277,7 @@ def partition_excel(list_path_excel:List[str],
     else: 
         # for billing items
         #print('check: billing items')
-        df_partition = partition_billitem(list_path_excel, num_partition, images_no_found)
+        df_partition, error_str = partition_billitem(list_path_excel, num_partition, images_no_found)
         for i, (df_single, df_billitem) in enumerate(df_partition):
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
@@ -269,7 +285,7 @@ def partition_excel(list_path_excel:List[str],
                 df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
                 df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
     
-    return excel_path_list
+    return excel_path_list, error_str
 
 def get_az_endpoint(az_path: List):
     endpoint_list = list()
@@ -388,7 +404,7 @@ def main(args):
     local_image_path = os.path.join(input_path, 'images')
     partition_folder = os.path.join(input_path, "partition")
     
-    partitioned_excel_path_list = partition_excel(list_path_excel, 
+    partitioned_excel_path_list, partion_errors = partition_excel(list_path_excel, 
                                                     num_partition, 
                                                     project_code, 
                                                     input_path,
@@ -428,9 +444,11 @@ def main(args):
     uploaded_excel = thread_upload(container_string, folder_blob_list, partitioned_excel_list)
     #print('upload excel status', status)
 
-    if len(printoutputs) > 0:
+    if len(printoutputs) > 0 or len(partion_errors):
         print(f'---------- WARNING -----------')
         for printout in printoutputs:
+            print(printout)
+        for printout in partion_errors:
             print(printout)
         print(f'------------------------------')
     

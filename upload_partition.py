@@ -1,6 +1,7 @@
 import os
 import sys
 import os.path as osp
+import traceback
 from typing import List, Tuple
 import json
 import numpy as np
@@ -156,6 +157,7 @@ def partition_billitem(list_path_excel:List[str],
                 df_billitem = df_billitem[~df_billitem['filename'].isin(images_no_found)]
             else:
                 raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
+
         
         idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
         for j, idx in enumerate(idx_list):
@@ -172,12 +174,12 @@ def partition_billitem(list_path_excel:List[str],
         if len(singel_part) > 0 and len(billitem_part) > 0:
             df_single = pd.concat(singel_part, ignore_index=True)
             df_billitem = pd.concat(billitem_part, ignore_index=True)
-            
-            df_single.image_id = range(df_single.shape[0])
-            df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
-            
-            df_partition.append((df_single, df_billitem))
-    
+            try:
+                df_single.image_id = range(df_single.shape[0])
+                df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
+                df_partition.append((df_single, df_billitem))
+            except Exception as err:
+                print(f'Warning:partition:  {traceback.format_exc()}')
         
     return df_partition
 
@@ -394,8 +396,12 @@ def main(args):
     print("All partitioned excel files:", partitioned_excel_path_list)
     # choose one of partitioned file
     selected_excels = list()
+    print(partition_idx)
+    max_partition = len(partitioned_excel_path_list)
     for _idx in partition_idx:
-        selected_excels += partitioned_excel_path_list[_idx:_idx+1]
+        if _idx < max_partition:
+            selected_excels += partitioned_excel_path_list[_idx:_idx+1]
+
     
     print(f"Selected partitioned excel files: {selected_excels}")
 

@@ -159,7 +159,7 @@ def partition_billitem(list_path_excel:List[str],
             else:
                 raise Exception(f'sheetname is not in [single, ({"billingitems".upper()})]')
 
-        # check filename in not in single
+        # looking for filename in billingitems sheet is not in filename in single
         filenames_in_single = list(set(df_single.filename.values))
         image_files_missing = list()
         for filename in list(set(df_billitem.filename.values)):
@@ -168,8 +168,8 @@ def partition_billitem(list_path_excel:List[str],
 
         # remove file
         if len(image_files_missing) > 0:
+            # clean missing filename
             df_billitem = df_billitem[~df_billitem['filename'].isin(image_files_missing)]
-
             # printout
             for image_missing in  image_files_missing:
                 error_str.append(f'WARNGING: image file missing in {path}:  {image_missing} in billingitems sheet is not found in single sheet')

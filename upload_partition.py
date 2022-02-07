@@ -67,15 +67,11 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                 list_file_name_image_check_local.append(value_path_image_local)
                 list_file_name_image_check_blob.append(value_path_image_blob)
             else:
-                # if str(file_name_image).lower() != 'nan' and \
-                #     str(file_name_image).strip() != '' and \
-                #     str(file_name_image).lower() != 'none' and \
-                #     file_name_image is not None:
                 printout = f'WARNING: image is not found in"{path_file_read}", "{file_name_image}" is not found from "{folder}"'
                 checking_string.append(printout)
                 images_no_found.append(file_name_image)
                 error_check = True
-    
+        
     return list_file_name_image_check_local, \
             excel_ok, \
             list_file_name_image_check_blob, \
@@ -195,6 +191,13 @@ def partition_billitem(list_path_excel:List[str],
             df_billitem = pd.concat(billitem_part, ignore_index=True)
             try:
                 df_single.image_id = range(df_single.shape[0])
+                
+                func_test = lambda x: df_single[df_single["filename"] == x]["image_id"].index
+                for filename in df_billitem["filename"].values:
+                    c = func_test(filename)
+                    if len(c) == 0:
+                        print(f'checking--> {filename}, {c}: {len(c)}')
+
                 df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
                 df_partition.append((df_single, df_billitem))
             except Exception as err:

@@ -193,10 +193,16 @@ def partition_billitem(list_path_excel:List[str],
                 df_single.image_id = range(df_single.shape[0])
                 
                 func_test = lambda x: df_single[df_single["filename"] == x]["image_id"].index
+
+                # file not match
+                missing_filename = list()
                 for filename in df_billitem["filename"].values:
                     c = func_test(filename)
                     if len(c) == 0:
                         print(f'checking--> {filename}, {c}: {len(c)}')
+                        missing_filename.append(filename)
+                #remove filename
+                df_billitem = df_billitem[~df_billitem['filename'].isin(missing_filename)]
 
                 df_billitem.image_id = df_billitem["filename"].apply(lambda x: df_single[df_single["filename"] == x]["image_id"].index[0])
                 df_partition.append((df_single, df_billitem))

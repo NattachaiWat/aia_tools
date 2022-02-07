@@ -67,14 +67,14 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                 list_file_name_image_check_local.append(value_path_image_local)
                 list_file_name_image_check_blob.append(value_path_image_blob)
             else:
-                if str(file_name_image).lower() != 'nan' and \
-                    str(file_name_image).strip() != '' and \
-                    str(file_name_image).lower() != 'none' and \
-                    file_name_image is not None:
-                    printout = f'WARNING: image is not found in"{path_file_read}", "{file_name_image}" is not found from "{folder}"'
-                    checking_string.append(printout)
-                    images_no_found.append(file_name_image)
-                    error_check = True
+                # if str(file_name_image).lower() != 'nan' and \
+                #     str(file_name_image).strip() != '' and \
+                #     str(file_name_image).lower() != 'none' and \
+                #     file_name_image is not None:
+                printout = f'WARNING: image is not found in"{path_file_read}", "{file_name_image}" is not found from "{folder}"'
+                checking_string.append(printout)
+                images_no_found.append(file_name_image)
+                error_check = True
     
     return list_file_name_image_check_local, \
             excel_ok, \
@@ -161,8 +161,11 @@ def partition_billitem(list_path_excel:List[str],
 
         # looking for filename in billingitems sheet is not in filename in single
         filenames_in_single = list(set(df_single.filename.values))
+        #filenames_in_single = [i.lower() for i in filenames_in_single]
+        filenames_in_billitem = list(set(df_billitem.filename.values))
+        #filenames_in_billitem = [i.lower() for i in filenames_in_billitem]
         image_files_missing = list()
-        for filename in list(set(df_billitem.filename.values)):
+        for filename in filenames_in_billitem:
             if filename not in filenames_in_single:
                 image_files_missing.append(filename) 
 

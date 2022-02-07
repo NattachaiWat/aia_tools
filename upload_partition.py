@@ -218,7 +218,7 @@ def partition_billitem(list_path_excel:List[str],
             # printout
             for image_missing in  image_files_missing:
                 error_str.append(f'WARNGING: image file missing in {path}:  {image_missing} in billingitems sheet is not found in single sheet')
-                format_errors.append({'error_type': 'image is not match between billingitems and single',
+                format_errors.append({'error_type': 'image is not match between 2 sheets',
                                         'messages': f'{path}:{image_missing}'})
       
         

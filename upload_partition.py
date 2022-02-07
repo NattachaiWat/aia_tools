@@ -14,6 +14,15 @@ from urllib.parse import urlparse
 
 NUM_PROCESSORS = 4
 
+single_billitems_columns = ['image_id', 'filename', 'CLAIM_NUMBER', 
+                                'OCCURRENCE', 'HOSPITALNAME', 'HOSPITALNAME_AIA', 
+                                'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL']
+multiple_billing_columns = ['image_id', 
+                                'filename', 'items_id',
+                                'CLAIM_NUMBER', 'OCCURRENCE',
+                                'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 'GROSSAMOUNT',
+                                'DISCOUNTAMOUNT',	'NETAMOUNT']
+
 def save_json(json_data, path_output_json):
     with open(path_output_json, 'w', encoding='utf8') as json_file:
         json.dump(json_data.copy(), json_file, ensure_ascii=False, indent=4)
@@ -60,10 +69,25 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                 if sheetname.lower() not in images_in_excel:
                     images_in_excel[sheetname.lower()] = list()
                 images_in_excel[sheetname.lower()] += list(tables.get(header_name).values)
+            
+            # check wrong fields
+            if sheetname.lower() == 'single':
+                possible_column_set = set(single_billitems_columns)
+            elif sheetname.lower() == 'billingitems':
+                possible_column_set = set(multiple_billing_columns)
+            noise_fieldnames = set(tables.columns.values)-possible_column_set
+            for col_name in noise_fieldnames:
+                checking_string.append(f'Warning: column name is wrong in {path_file_read} in [{sheetname}]')
+                format_errors.append({'error_type': 'column name is wrong',
+                                        'messages': f'{path_file_read}:{sheetname}:{col_name}'})
+            
 
         if ignore_file:
             continue
         excel_ok.append(path_file_read)
+
+        
+
 
         for sheetname, d in images_in_excel.items():
             images_in_excel[sheetname] = list(set(d))
@@ -275,14 +299,7 @@ def partition_single(list_path_excel:List[str], num_partition:int,
 
     return df_partition, list(), list()
 
-single_billitems_columns = ['image_id', 'filename', 'CLAIM_NUMBER', 
-                                'OCCURRENCE', 'HOSPITALNAME', 'HOSPITALNAME_AIA', 
-                                'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL']
-multiple_billing_columns = ['image_id', 
-                                'filename', 'items_id',
-                                'CLAIM_NUMBER', 'OCCURRENCE',
-                                'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 
-                                'DISCOUNTAMOUNT',	'NETAMOUNT']
+
                                 
 def partition_excel(list_path_excel:List[str], 
                         num_partition:int, 

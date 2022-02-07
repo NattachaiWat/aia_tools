@@ -1,3 +1,4 @@
+from fileinput import filename
 import os
 import sys
 import os.path as osp
@@ -17,7 +18,7 @@ single_billitems_columns = ['image_id', 'filename', 'CLAIM_NUMBER',
                                 'OCCURRENCE', 'HOSPITALNAME', 'HOSPITALNAME_AIA', 
                                 'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL']
 multiple_billing_columns = ['image_id', 
-                                'filename', 'items_id',
+                                'filename', #'items_id',
                                 'CLAIM_NUMBER', 'OCCURRENCE',
                                 'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 'GROSSAMOUNT',
                                 'DISCOUNTAMOUNT',	'NETAMOUNT']
@@ -358,10 +359,14 @@ def partition_excel(list_path_excel:List[str],
         df_partition, error_str,format_errors = partition_billitem(list_path_excel, num_partition, images_no_found)
         for i, (df_single, df_billitem) in enumerate(df_partition):
             # remove noisy column
-
-            
             df_single = df_single[single_billitems_columns]
             df_billitem = df_billitem[multiple_billing_columns]
+            if 'items_id' not in df_billitem:
+                df_billitem['items_id'] = range(len(df_billitem['filename'].index))
+            filename_keys = set(df_billitem['filename'])
+            for filename in filename_keys:
+                nItems = len(df_billitem.loc[df_billitem['filename'] == filename].index)
+                df_billitem.loc[df_billitem['filename'] == filename, 'items_id'] = range(nItems)
 
 
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"

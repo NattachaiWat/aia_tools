@@ -1,4 +1,3 @@
-from distutils.log import error
 import os
 import sys
 import os.path as osp
@@ -65,21 +64,33 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
                 format_errors.append({'error_type': 'filename is not found',
                                         'messages': f'{path_file_read}:{sheetname}'})
                 break
-            else:
-                if sheetname.lower() not in images_in_excel:
-                    images_in_excel[sheetname.lower()] = list()
-                images_in_excel[sheetname.lower()] += list(tables.get(header_name).values)
-            
+              
             # check wrong fields
             if sheetname.lower() == 'single':
                 possible_column_set = set(single_billitems_columns)
             elif sheetname.lower() == 'billingitems':
                 possible_column_set = set(multiple_billing_columns)
+            
+
+            # check not match
+            missing_fieldnames = possible_column_set - set(tables.columns.values)
+            if len(missing_fieldnames) > 0:
+                ignore_file = True
+                for col_name in missing_fieldnames:
+                    checking_string.append(f'Warning: column name is missing in {path_file_read} in [{sheetname}]')
+                    format_errors.append({'error_type': 'column name is missing',
+                                        'messages': f'{path_file_read}:{sheetname}:{col_name}'})
+                break
+                
             noise_fieldnames = set(tables.columns.values)-possible_column_set
             for col_name in noise_fieldnames:
                 checking_string.append(f'Warning: column name is wrong in {path_file_read} in [{sheetname}]')
                 format_errors.append({'error_type': 'column name is wrong',
                                         'messages': f'{path_file_read}:{sheetname}:{col_name}'})
+            
+            if sheetname.lower() not in images_in_excel:
+                images_in_excel[sheetname.lower()] = list()
+                images_in_excel[sheetname.lower()] += list(tables.get(header_name).values)
             
 
         if ignore_file:

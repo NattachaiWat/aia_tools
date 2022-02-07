@@ -363,10 +363,11 @@ def partition_excel(list_path_excel:List[str],
             if 'items_id' not in df_billitem:
                 df_billitem['items_id'] = range(len(df_billitem['filename'].index))
             filename_keys = set(df_billitem['filename'])
+    
             for filename in filename_keys:
                 nItems = len(df_billitem.loc[df_billitem['filename'] == filename].index)
-                df_billitem.loc[df_billitem['filename'] == filename, 'items_id'] = range(nItems)
-
+                df_billitem.loc[df_billitem['filename'] == filename, ['items_id']] = range(nItems)
+            
 
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)

@@ -1,8 +1,9 @@
+from distutils.log import error
 import os
 import sys
 import os.path as osp
 import traceback
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import json
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ from multiprocessing.pool import ThreadPool
 from blob_connect import upload_to_blob
 from urllib.parse import urlparse
 
-NUM_PROCESSORS = 10
+NUM_PROCESSORS = 4
 
 def save_json(json_data, path_output_json):
     with open(path_output_json, 'w', encoding='utf8') as json_file:
@@ -36,41 +37,59 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
     checking_string = list()
     
     excel_ok = list()
+    format_errors = list()
     for path_file_read in list_path_excel:
         excel_data = pd.read_excel(path_file_read, sheet_name = None)
         ignore_file = False
-        images_in_excel = list()
+        images_in_excel = dict()
         for sheetname, tables  in excel_data.items():
             if sheetname.lower() not in ['single', 'billingitems']:
                 ignore_file = True
                 checking_string.append(f'Warning:Wrong format: {sheetname} not in ["SINGLE", "{"billingitems".upper()}"] in {path_file_read}')
+                format_errors.append({'error_type': 'sheetname is wrong',
+                                        'messages': f'{path_file_read}:{sheetname}'})
                 break
 
             if header_name not in tables.columns:
                 ignore_file = True
                 checking_string.append(f'Warning:Wrong format: the filename column is not in {path_file_read} in [{sheetname}]')
+                format_errors.append({'error_type': 'filename is not found',
+                                        'messages': f'{path_file_read}:{sheetname}'})
                 break
             else:
-                images_in_excel += list(tables.get(header_name).values)
+                if sheetname.lower() not in images_in_excel:
+                    images_in_excel[sheetname.lower()] = list()
+                images_in_excel[sheetname.lower()] += list(tables.get(header_name).values)
 
         if ignore_file:
             continue
         excel_ok.append(path_file_read)
 
-        list_image_name_excel = list(set(images_in_excel))
-        num_filename_excel += len(list_image_name_excel)
+        for sheetname, d in images_in_excel.items():
+            images_in_excel[sheetname] = list(set(d))
+            num_filename_excel += len(images_in_excel[sheetname])
         
-        for file_name_image in list_image_name_excel:
-            if file_name_image in list_file_name_image:
-                value_path_image_local = list_path_file_image[list_file_name_image.index(file_name_image)]
-                value_path_image_blob = list_path_blob_image[list_file_name_image.index(file_name_image)]
-                list_file_name_image_check_local.append(value_path_image_local)
-                list_file_name_image_check_blob.append(value_path_image_blob)
-            else:
-                printout = f'WARNING: image is not found in"{path_file_read}", "{file_name_image}" is not found from "{folder}"'
-                checking_string.append(printout)
-                images_no_found.append(file_name_image)
-                error_check = True
+        for sheetname, data in images_in_excel.items():
+            for file_name_image in data:
+   
+                if file_name_image in list_file_name_image:
+                    if str(file_name_image) == 'nan':
+                        print(file_name_image)
+                    value_path_image_local = list_path_file_image[list_file_name_image.index(file_name_image)]
+                    value_path_image_blob = list_path_blob_image[list_file_name_image.index(file_name_image)]
+                    list_file_name_image_check_local.append(value_path_image_local)
+                    list_file_name_image_check_blob.append(value_path_image_blob)
+                else:
+                    if str(file_name_image) == 'nan' or file_name_image is None:
+                        _file_name_image = 'null'
+                    else:
+                        _file_name_image = file_name_image
+                    printout = f'WARNING: image is not found in"{path_file_read}", "{_file_name_image}" is not found from "{folder}"'
+                    format_errors.append({'error_type': 'images are not found',
+                                            'messages': f'{path_file_read}:{sheetname}:{_file_name_image}'})
+                    checking_string.append(printout)
+                    images_no_found.append(file_name_image)
+                    error_check = True
         
     return list_file_name_image_check_local, \
             excel_ok, \
@@ -78,7 +97,8 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
             list_path_blob_excel, \
             error_check, \
             list(set(images_no_found)), \
-            checking_string    
+            checking_string, \
+            format_errors  
 
 def find_file(main_folder_az, folder=None, type_file=["xlsx"],remove_main_path=False):
     list_path_blob_file = []
@@ -135,10 +155,12 @@ def get_split_list(lst, size):
 
 def partition_billitem(list_path_excel:List[str], 
                         num_partition:int, 
-                        images_no_found: List[str]) -> List[Tuple[pd.DataFrame, pd.DataFrame]]:
+                        images_no_found: List[str]) -> Tuple[List[Tuple[pd.DataFrame, pd.DataFrame]], 
+                                                             List[str], List[dict]]:
     single_df_list = [[] for _ in range(num_partition)]
     billitem_df_list = [[] for _ in range(num_partition)]
     error_str = list()
+    format_errors = list()
     for i, path in enumerate(list_path_excel):
         df_dict = pd.read_excel(path, sheet_name=None)
         sheetnames = df_dict.keys()
@@ -172,6 +194,8 @@ def partition_billitem(list_path_excel:List[str],
             # printout
             for image_missing in  image_files_missing:
                 error_str.append(f'WARNGING: image file missing in {path}:  {image_missing} in billingitems sheet is not found in single sheet')
+                format_errors.append({'error_type': 'image is not match between billingitems and single',
+                                        'messages': f'{path}:{image_missing}'})
       
         
         idx_list = get_split_list(range(len(list(df_single.image_id.values))), num_partition)
@@ -199,8 +223,12 @@ def partition_billitem(list_path_excel:List[str],
                 for filename in df_billitem["filename"].values:
                     c = func_test(filename)
                     if len(c) == 0:
-                        print(f'checking--> {filename}, {c}: {len(c)}')
+                        #print(f'checking--> {filename}, {c}: {len(c)}')
+                        #error_code = f'WARNING: filename is not matched: {filename}: partion  {i}: len: {len(c)}'
+                        #error_str.append(error_code)
                         missing_filename.append(filename)
+                        # format_errors.append({'error_type': 'image is not match between billingitems and single in partition',
+                        #                 'messages': f'{filename}:{image_missing}'})
                 #remove filename
                 df_billitem = df_billitem[~df_billitem['filename'].isin(missing_filename)]
 
@@ -209,7 +237,7 @@ def partition_billitem(list_path_excel:List[str],
             except Exception as err:
                 print(f'Warning: partition in {i}:  {traceback.format_exc()}')
         
-    return df_partition,error_str
+    return df_partition, error_str, format_errors
 
 def partition_single(list_path_excel:List[str], num_partition:int,
                      images_no_found: List[str]) -> List[pd.DataFrame]:
@@ -245,13 +273,22 @@ def partition_single(list_path_excel:List[str], num_partition:int,
             
             df_partition.append(df_single)
 
-    return df_partition, list()
+    return df_partition, list(), list()
 
+single_billitems_columns = ['image_id', 'filename', 'CLAIM_NUMBER', 
+                                'OCCURRENCE', 'HOSPITALNAME', 'HOSPITALNAME_AIA', 
+                                'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL']
+multiple_billing_columns = ['image_id', 
+                                'filename', 'items_id',
+                                'CLAIM_NUMBER', 'OCCURRENCE',
+                                'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 
+                                'DISCOUNTAMOUNT',	'NETAMOUNT']
+                                
 def partition_excel(list_path_excel:List[str], 
                         num_partition:int, 
                         project_code:str, 
                         input_folder:str,
-                        images_no_found: List[str]) -> str:
+                        images_no_found: List[str]) -> Tuple[List[str], List[str], List[Dict]]:
     """
     แบ่งแต่ละ excel ไฟล์ที่อยู่ใน list_path_excel เป็นส่วนๆเป็นจำนวน num_partition ส่วน
     แล้วเอาส่วนที่ i ของแต่ละไฟล์มา merge รวมกันแล้ว save excel แต่ละส่วน
@@ -280,8 +317,9 @@ def partition_excel(list_path_excel:List[str],
     if temp_dict == {'single'}:
         # for single sheet
         #print('check: single')
-        df_partition, error_str = partition_single(list_path_excel, num_partition, images_no_found)
+        df_partition, error_str, format_errors = partition_single(list_path_excel, num_partition, images_no_found)
         for i, df_part in enumerate(df_partition):
+            df_part = df_part.loc[:, ~df_part.columns.str.contains('^Unnamed')]
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
             with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
@@ -289,15 +327,22 @@ def partition_excel(list_path_excel:List[str],
     else: 
         # for billing items
         #print('check: billing items')
-        df_partition, error_str = partition_billitem(list_path_excel, num_partition, images_no_found)
+        df_partition, error_str,format_errors = partition_billitem(list_path_excel, num_partition, images_no_found)
         for i, (df_single, df_billitem) in enumerate(df_partition):
+            # remove noisy column
+
+            
+            df_single = df_single[single_billitems_columns]
+            df_billitem = df_billitem[multiple_billing_columns]
+
+
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"
             excel_path_list.append(save_path)
             with pd.ExcelWriter(osp.join(save_folder, save_path)) as writer:
                 df_single.to_excel(writer, sheet_name='single', engine='openpyxl', index=False)
                 df_billitem.to_excel(writer, sheet_name='BILLINGITEMS', engine='openpyxl', index=False)
     
-    return excel_path_list, error_str
+    return excel_path_list, error_str, format_errors
 
 def get_az_endpoint(az_path: List):
     endpoint_list = list()
@@ -382,6 +427,24 @@ def check_filename_billing(list_path_excel:str) -> dict:
                     return_output[path] = [row['filename']]
     return return_output        
 
+def error_to_excel(filename, errors):
+    df_dict = {}
+    for d in errors:                       
+        error_type = d['error_type']
+        messages   = d['messages']
+        if error_type not in df_dict:
+            df_dict[error_type] = {'messages':list()}
+        df_dict[error_type]['messages'].append(messages)
+    
+    with pd.ExcelWriter(filename) as writer:
+        for sheetname, data in df_dict.items():
+            pd_output = pd.DataFrame(data)
+            pd_output.to_excel(writer, 
+                                sheet_name = sheetname, 
+                                engine='openpyxl', index=False)
+    
+
+
 def main(args):
     # get all arguments
     project_code = args.project_code
@@ -396,6 +459,7 @@ def main(args):
     output_json_folder_az = '/'.join(['research','data','label_config'])
     excel_folder_az = '/'.join(['research','data',project_code,'excel'])
     image_folder_az = '/'.join(['research','data',project_code,'images'])
+   
     
     check_file_result = check_file_image(main_folder_az, folder=input_path,header_name="filename")
     list_file_name_image_check_local,\
@@ -404,7 +468,7 @@ def main(args):
         list_path_blob_excel,\
         error_check, \
         images_no_found, \
-        printoutputs = check_file_result \
+        printoutputs, format_errors = check_file_result \
         
     # assertion
     assert os.path.exists('/'.join([input_path,'images'])) ,'Image folder not found'
@@ -415,13 +479,19 @@ def main(args):
     
     local_image_path = os.path.join(input_path, 'images')
     partition_folder = os.path.join(input_path, "partition")
+    save_error_excel = os.path.join(input_path, f'{project_code}_errors.xlsx')
     
-    partitioned_excel_path_list, partion_errors = partition_excel(list_path_excel, 
+    partitioned_excel_path_list, partion_errors, format_partion_errors = partition_excel(list_path_excel, 
                                                     num_partition, 
                                                     project_code, 
                                                     input_path,
                                                     images_no_found)
+
+
     print("All partitioned excel files:", partitioned_excel_path_list)
+
+    error_to_excel(filename = save_error_excel, errors = format_errors+format_partion_errors)
+
     # choose one of partitioned file
     selected_excels = list()
     print(partition_idx)

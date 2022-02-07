@@ -360,13 +360,13 @@ def partition_excel(list_path_excel:List[str],
             # remove noisy column
             df_single = df_single[single_billitems_columns]
             df_billitem = df_billitem[multiple_billing_columns]
-            if 'items_id' not in df_billitem:
-                df_billitem['items_id'] = range(len(df_billitem['filename'].index))
+            #if 'items_id' not in df_billitem:
+            #    df_billitem['items_id'] = range(len(df_billitem['filename'].index))
             filename_keys = set(df_billitem['filename'])
     
             for filename in filename_keys:
                 nItems = len(df_billitem.loc[df_billitem['filename'] == filename].index)
-                df_billitem.loc[df_billitem['filename'] == filename, ['items_id']] = range(nItems)
+                df_billitem.loc[df_billitem.filename == filename, ['items_id']] = range(nItems)
             
 
             save_path = f"{project_code}_{i}of{num_partition}.xlsx"

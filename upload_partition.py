@@ -487,12 +487,22 @@ def main(args):
     num_partition = args.num_partition
     partition_idx = [int(_idx) for _idx in args.partition_idx.split(',')] 
     az_crediential = args.az_crediential
+    benchmark     = args.benchmark
     
-    main_folder_az = '/'.join(['research','data',project_code])
-    output_json_name = f'{project_code}.json'
-    output_json_folder_az = '/'.join(['research','data','label_config'])
-    excel_folder_az = '/'.join(['research','data',project_code,'excel'])
-    image_folder_az = '/'.join(['research','data',project_code,'images'])
+
+    if benchmark == False:
+        main_folder_az = '/'.join(['research','data',project_code])
+        output_json_name = f'{project_code}.json'
+        output_json_folder_az = '/'.join(['research','data','label_config'])
+        excel_folder_az = '/'.join(['research','data',project_code,'excel'])
+        image_folder_az = '/'.join(['research','data',project_code,'images'])
+    else:
+        main_folder_az = '/'.join(['benchmark','data',project_code])
+        output_json_name = f'{project_code}.json'
+        output_json_folder_az = '/'.join(['benchmark','data','label_config'])
+        excel_folder_az = '/'.join(['benchmark','data',project_code,'excel'])
+        image_folder_az = '/'.join(['benchmark','data',project_code,'images'])
+
    
     
     check_file_result = check_file_image(main_folder_az, folder=input_path,header_name="filename")
@@ -595,6 +605,7 @@ if __name__ == "__main__":
     parser.add_argument('--partition_idx', type=str,  
                             default=0, help='index of partition to upload (start from 0)')
     parser.add_argument('--az_crediential', type=str, default='None', help='')
+    parser.add_argument('--benchmark',  action='store_true')
     args = parser.parse_args()
     partition_idx = [int(partition_idx) for partition_idx in args.partition_idx.split(',')] 
     for _idx in partition_idx:

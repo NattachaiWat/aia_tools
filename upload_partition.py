@@ -13,20 +13,81 @@ from urllib.parse import urlparse
 
 NUM_PROCESSORS = 4
 
-single_billitems_columns = ['image_id', 'filename', 'CLAIM_NUMBER', 
-                                'OCCURRENCE', 'HOSPITALNAME', 'HOSPITALNAME_AIA', 
-                                'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL']
-multiple_billing_columns = ['image_id', 
+column_map = {
+    'AIA001':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                              "NATIONALID", "CLAIMANTNAME", "CLAIMANTSURNAME", "DATEOFBIRTH", "DATEOFEXPIRY"]},
+    'AIA002':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                              "POLICYNUMBER", "CERTIFICATENUMBER", "SUBOFFICENAME", "CLAIMANTNAME",
+                               "CLAIMANTSURNAME", "MEMBERSHIPNO"]},
+    'AIA003':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                          "CLAIMANTNAME_A", "CLAIMANTSURNAME_A", "POLICYNUMBER_A", "CERTIFICATENUMBER_A",
+                        "TEMPERATURE_A", "PULSE_A", "RESPIRATORYRATE_A", "SYSTOLICBP_A", "DIASTOLICBP_A",
+                        "ATTENDINGPRACTITIONER_A", "ATTENDINGPRACTITIONER_A_AIA", "CHIEFCOMPLAINT_A",
+                        "DATEOFACCIDENT_A", "DATEOFACCIDENTTIME_A", "UNDERLYINGDISEASE_A",
+                        "UNDERLYINGDISEASE_A_AIA", "PROVISIONALDIAGNOSIS_A",
+                        "CLAIMANTNAME_B", "CLAIMANTSURNAME_B",  "ADMISSIONDATE_B", "DISCHARGEDATE_B",
+                        "DATEOFINJURY_B", "TIMEOFINJURY_B", "TEMPERATURE_B", "PULSE_B", "RESPIRATORYRATE_B",
+                        "SYSTOLICBP_B", "DIASTOLICBP_B", "UNDERLYINGDISEASE_B", "UNDERLYINGDISEASE_B_AIA",
+                        "DIAGNOSIS1_B", "ICD10TM1_B", "ICD10TM1_B_AIA", "DIAGNOSIS2_B",
+                        "ICD10TM2_B", "ICD10TM2_B_AIA", "DIAGNOSIS3_B", "ICD10TM3_B",
+                        "ICD10TM3_B_AIA", "FINALDIAGNOSIS_B", "ICD9CM1_B", "ICD9CM1_B_AIA",
+                        "ANESTHESIA_B", "ATTENDINGPRACTITIONER_B", "ATTENDINGPRACTITIONER_B_AIA" ]},
+    'AIA004':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "POLICYNUMBER", "CLAIMANTNAME", "CLAIMANTSURNAME", "PATIENTNAME",
+                        "PATIENTSURNAME", "POLICYNUMBER", "CERTIFICATENUMBER","CONSULTATIONDATE",
+                        "TEMPERATURE", "PULSE", "RESPIRATORYRATE", "SYSTOLICBP", "DIASTOLICBP",
+                        "ATTENDINGPRACTITIONER", "ATTENDINGPRACTITIONER_AIA", "DATEOFACCIDENT",
+                        "DATEOFACCIDENTTIME", "CHIEFCOMPLAINT", "UNDERLYINGDISEASE", "UNDERLYINGDISEASE_AIA",
+                        "DIAGNOSIS", "ICD10TM", "ICD10TM_AIA"]},
+    'AIA005': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                             "CLAIMANTNAME", "CLAIMANTSURNAME", "BILLDATE", "POLICYNUMBER", "CERTIFICATENUMBER"]},
+    'AIA006':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                              "AGENTCODE"]},
+    'AIA007':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "HOSPITALNAME", "HOSPITALNAME_AIA", "VISITDATE", "VISITDATETO", "CLAIMANTNAME",
+                        "CLAIMANTSURNAME", "DIAGNOSIS", "OPERATIONPROCEDURE", "ATTENDINGPRACTITIONER", "ATTENDINGPRACTITIONER_AIA"]},
+    'AIA008': {'single' :['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE', 
+                        'HOSPITALNAME', 'HOSPITALNAME_AIA', 
+                        'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL'],
+                'billingitems':['image_id', 
                                 'filename', #'items_id',
                                 'CLAIM_NUMBER', 'OCCURRENCE',
                                 'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 'GROSSAMOUNT',
-                                'DISCOUNTAMOUNT',	'NETAMOUNT']
+                                'DISCOUNTAMOUNT',	'NETAMOUNT']},
+    'AIA009': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "POLICYNUMBER", "CERTIFICATENUMBER", "REQUESTFORORIGINALBILL", "NOORIGINALBILL"]},
+    'AIA010': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "bnk_nm", "bnk_id", "bnk_bnm"]}, 
+    'AIA011': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "cli_indv_giv_nm", "cli_indv_sur_nm", "cli_sex_cd",
+                        "cli_bth_dt", "cli_tax_id", "cli_bth_wgh", "cli_indv_titl_txt", "cli_citz_cd"]},
+    'AIA012': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "cli_tax_id",  "cli_indv_titl_txt",  "cli_indv_giv_nm",  "cli_indv_sur_nm", 
+                        "cli_bth_dt", "cli_exp_dt", "MIR-CLI-ADDR-LN-1-TXT-T[4]", "MIR-CLI-CITY-LOCAL", "MIR-CLI-CRNT-LOC-CD-4"]},
+    'AIA013': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "cli_tax_id", "cli_bth_dt", "cli_indv_titl_txt", "cli_sex_cd", "cli_citz_cd", 
+                        "cli_indv_sur_nm", "cli_indv_giv_nm", "cli_exp_dt"]},
+    'AIA014':{'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "HOSPITALNAME", "HOSPITALNAME_AIA", "VISITDATE", "VISITDATETO", "CLAIMANTNAME",
+                        "CLAIMANTSURNAME", "DIAGNOSIS", "OPERATIONPROCEDURE", "ATTENDINGPRACTITIONER", "ATTENDINGPRACTITIONER_AIA"]}, 
+    'AIA015': {'single' :['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE', 
+                        'HOSPITALNAME', 'HOSPITALNAME_AIA', 
+                        'BILLDATE', 'CLAIMANTNAME', 'CLAIMANTSURNAME', 'GRANDTOTAL'],
+            'billingitems':['image_id', 'filename', #'items_id',
+                                'CLAIM_NUMBER', 'OCCURRENCE',
+                                'ITEMSDETAIL', 'ITEMSDETAIL_AIA', 'GROSSAMOUNT',
+                                'DISCOUNTAMOUNT',	'NETAMOUNT']},
+    'AIA016': {'single': ['image_id', 'filename', 'CLAIM_NUMBER', 'OCCURRENCE',
+                        "bnk_nm", "bnk_id", "bnk_bnm"]}, 
+    
+                            
+}
 
 def save_json(json_data, path_output_json):
     with open(path_output_json, 'w', encoding='utf8') as json_file:
         json.dump(json_data.copy(), json_file, ensure_ascii=False, indent=4)
 
-def check_file_image(main_folder_az, folder=None,header_name="filename"):
+def check_file_image(project_code, main_folder_az, folder=None,header_name="filename"):
     list_path_file_image,list_file_name_image,list_path_blob_image = find_file(main_folder_az, folder=folder,type_file=['tiff','tif', 'jpg', 'jpeg', 'bmp', 'png', 'pdf'],remove_main_path=True)
     list_path_excel,_,list_path_blob_excel = find_file(main_folder_az, folder=folder,type_file=["xlsx"],remove_main_path=True)
     print('-'*10,'Excel files found','-'*10)
@@ -67,9 +128,9 @@ def check_file_image(main_folder_az, folder=None,header_name="filename"):
               
             # check wrong fields
             if sheetname.lower() == 'single':
-                possible_column_set = set(single_billitems_columns)
+                possible_column_set = set(column_map[project_code]['single'])
             elif sheetname.lower() == 'billingitems':
-                possible_column_set = set(multiple_billing_columns)
+                possible_column_set = set(column_map[project_code]['billingitems'])
             
 
             # check not match
@@ -358,8 +419,8 @@ def partition_excel(list_path_excel:List[str],
         df_partition, error_str,format_errors = partition_billitem(list_path_excel, num_partition, images_no_found)
         for i, (df_single, df_billitem) in enumerate(df_partition):
             # remove noisy column
-            df_single = df_single[single_billitems_columns]
-            df_billitem = df_billitem[multiple_billing_columns]
+            df_single = df_single[column_map[project_code]['single']]
+            df_billitem = df_billitem[column_map[project_code]['billingitems']]
             #if 'items_id' not in df_billitem:
             #    df_billitem['items_id'] = range(len(df_billitem['filename'].index))
             filename_keys = set(df_billitem['filename'])
@@ -462,21 +523,21 @@ def check_filename_billing(list_path_excel:str) -> dict:
     return return_output        
 
 def error_to_excel(filename, errors):
-    df_dict = {}
-    for d in errors:                       
-        error_type = d['error_type']
-        messages   = d['messages']
-        if error_type not in df_dict:
-            df_dict[error_type] = {'messages':list()}
-        df_dict[error_type]['messages'].append(messages)
-    
-    with pd.ExcelWriter(filename) as writer:
-        for sheetname, data in df_dict.items():
-            pd_output = pd.DataFrame(data)
-            pd_output.to_excel(writer, 
-                                sheet_name = sheetname, 
-                                engine='openpyxl', index=False)
-    
+    if len(errors) > 0:
+        df_dict = {}
+        for d in errors:                       
+            error_type = d['error_type']
+            messages   = d['messages']
+            if error_type not in df_dict:
+                df_dict[error_type] = {'messages':list()}
+            df_dict[error_type]['messages'].append(messages)
+        with pd.ExcelWriter(filename) as writer:
+            for sheetname, data in df_dict.items():
+                pd_output = pd.DataFrame(data)
+                pd_output.to_excel(writer, 
+                                    sheet_name = sheetname, 
+                                    engine='openpyxl', index=False)
+        
 
 
 def main(args):
@@ -488,6 +549,7 @@ def main(args):
     partition_idx = [int(_idx) for _idx in args.partition_idx.split(',')] 
     az_crediential = args.az_crediential
     benchmark     = args.benchmark
+    assert project_code in column_map, f'{project_code} is not found'
     
 
     if benchmark == False:
@@ -505,7 +567,7 @@ def main(args):
 
    
     
-    check_file_result = check_file_image(main_folder_az, folder=input_path,header_name="filename")
+    check_file_result = check_file_image(project_code, main_folder_az, folder=input_path,header_name="filename")
     list_file_name_image_check_local,\
         list_path_excel,\
         list_file_name_image_check_blob,\
@@ -533,9 +595,9 @@ def main(args):
 
 
     print("All partitioned excel files:", partitioned_excel_path_list)
-
+    #print('save')
     error_to_excel(filename = save_error_excel, errors = format_errors+format_partion_errors)
-
+    #print('->save')
     # choose one of partitioned file
     selected_excels = list()
     print(partition_idx)

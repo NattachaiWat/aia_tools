@@ -339,7 +339,7 @@ def partition_single(list_path_excel:List[str], num_partition:int,
                      images_no_found: List[str]) -> List[pd.DataFrame]:
     single_df_list = [[] for _ in range(num_partition)]
     for i, path in enumerate(list_path_excel):
-        df_dict = pd.read_excel(path, sheet_name=None)
+        df_dict = pd.read_excel(path, sheet_name=None, dtype=str)
         if 'single' in df_dict:
             df_single = df_dict.get('single')
         elif 'SINGLE' in df_dict:

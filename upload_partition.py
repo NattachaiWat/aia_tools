@@ -108,7 +108,7 @@ def check_file_image(project_code, main_folder_az, folder=None,header_name="file
     excel_ok = list()
     format_errors = list()
     for path_file_read in list_path_excel:
-        excel_data = pd.read_excel(path_file_read, sheet_name = None)
+        excel_data = pd.read_excel(path_file_read, sheet_name = None, dtype=str) 
         ignore_file = False
         images_in_excel = dict()
         for sheetname, tables  in excel_data.items():
@@ -258,7 +258,7 @@ def partition_billitem(list_path_excel:List[str],
     error_str = list()
     format_errors = list()
     for i, path in enumerate(list_path_excel):
-        df_dict = pd.read_excel(path, sheet_name=None)
+        df_dict = pd.read_excel(path, sheet_name=None, dtype=str)
         sheetnames = df_dict.keys()
         print(sheetnames)
         for sheetname in sheetnames:
@@ -398,7 +398,7 @@ def partition_excel(list_path_excel:List[str],
     
     temp_dict = list()
     for excel_file in list_path_excel:
-        temp_dict += list(pd.read_excel(excel_file, sheet_name=None).keys())
+        temp_dict += list(pd.read_excel(excel_file, sheet_name=None, dtype=str).keys())
         temp_dict = list(set(temp_dict))
     temp_dict = set([s.lower() for s in temp_dict])
     excel_path_list = []
@@ -453,7 +453,8 @@ def get_az_endpoint(az_path: List):
 def get_imagefiles_from_excel(excel_file, local_image_path):
     sheetnames = pd.read_excel(excel_file,  sheet_name = None,
                                 engine = 'openpyxl',
-                                na_filter=False)
+                                na_filter=False,
+                                dtype=str)
     image_list = list()
     for sheetname in sheetnames:
         pandas_data= pd.read_excel(excel_file,
@@ -476,7 +477,8 @@ def edit_image_id(excel_file: str, partitioned_images_index: dict):
     sheetnames = pd.read_excel(excel_file,
                                 sheet_name = None,
                                 engine = 'openpyxl',
-                                na_filter=False).keys()
+                                na_filter=False,
+                                dtype=str).keys()
     pandas_data = { }
     for sheetname in sheetnames:
         if sheetname.lower() == 'single':
@@ -502,7 +504,7 @@ def edit_image_id(excel_file: str, partitioned_images_index: dict):
 def check_filename_billing(list_path_excel:str) -> dict:
     return_output = {}
     for path in list_path_excel:
-        df_dict = pd.read_excel(path, sheet_name=None)
+        df_dict = pd.read_excel(path, sheet_name=None, dtype=str)
 
         for sheetname in df_dict.keys():
             if sheetname.lower() == 'single':

@@ -7,6 +7,7 @@ import json
 import numpy as np
 import pandas as pd
 from multiprocessing.pool import ThreadPool
+from pathvalidate import sanitize_filepath
 
 from blob_connect import upload_to_blob
 from urllib.parse import urlparse
@@ -84,6 +85,7 @@ column_map = {
 }
 
 def save_json(json_data, path_output_json):
+    path_output_json = sanitize_filepath(path_output_json, platform='auto')
     with open(path_output_json, 'w', encoding='utf8') as json_file:
         json.dump(json_data.copy(), json_file, ensure_ascii=False, indent=4)
 
@@ -206,7 +208,7 @@ def find_file(main_folder_az, folder=None, type_file=["xlsx"],remove_main_path=F
     folder_find_images = '/'.join([folder,'images'])
     folder_find_excel = '/'.join([folder,'excel'])
 
-    for main_folder,sub_folder,list_file in os.walk(folder):
+    for main_folder,sub_folder,list_file in os.walk(sanitize_filepath(folder, platform='auto')):
         main_folder = str(main_folder).replace('\\','/') 
         if str(main_folder).find(folder_find_images) == 0 or (str(main_folder).find(folder_find_excel) == 0 and "xlsx" in type_file):
             for file in list_file:
@@ -388,8 +390,9 @@ def partition_excel(list_path_excel:List[str],
     
     
     save_folder = osp.join(input_folder, "partition")
-    if not osp.exists(save_folder):
-        os.makedirs(save_folder)
+    save_folder = sanitize_filepath(save_folder, platform='auto')
+    os.makedirs(save_folder, exist_ok=True)
+
     #else: # partition file exist
     #    excel_path_list = sorted([osp.join(save_folder,f) for f in os.listdir(save_folder) if f.endswith('.xlsx')])
     #    if excel_path_list:

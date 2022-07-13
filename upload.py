@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import argparse
 import json
+from pathvalidate import sanitize_filepath
 
 parser = argparse.ArgumentParser(description='Upload image to azure blob storage.')
 
@@ -28,6 +29,7 @@ output_json_name = f'{project_code}.json'
 output_json_folder_az = '/'.join(['research','data','label_config'])
 
 def save_json(json_data, path_output_json):
+    path_output_json = sanitize_filepath(path_output_json, platform='auto')
     with open(path_output_json, 'w', encoding='utf8') as json_file:
         json.dump(json_data.copy(), json_file, ensure_ascii=False, indent=4)
 
@@ -141,7 +143,7 @@ def upload_file_to_blob(check_image=True):
         'image_path_az':image_path_az,
         'container_string':container_string
     }
-
+    output_json_name = sanitize_filepath(output_json_name, platform='auto')
     save_json(json_output, output_json_name)
 
     print('-'*10,'Upload json','-'*10)

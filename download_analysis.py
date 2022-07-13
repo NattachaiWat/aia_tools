@@ -7,6 +7,7 @@ import argparse
 from urllib.parse import urlparse
 import json
 import traceback
+from pathvalidate import sanitize_filepath
 
 parser = argparse.ArgumentParser(description='Download file from azure blob storage.')
 parser.add_argument('--save_path', type=str, default='.', help='')
@@ -30,6 +31,7 @@ def download_azblob(url, local_path):
   blob_container = conn._BLOB_CLIENT.get_container_client(container_name)
   try:
     file_content = blob_container.get_blob_client(endpoint).download_blob().readall()
+    save_file = sanitize_filepath(save_file, platform='auto')
     with open(save_file, "wb") as file:
       file.write(file_content)
       return True, save_file
@@ -46,10 +48,11 @@ if __name__ == '__main__':
 
   status, list_path = download_azblob(url = args.url,
                           local_path = args.save_path)
+  
   if status:
     print(f"saved: {list_path}")
 
-  with open(list_path,'r') as fp:
+  with open(sanitize_filepath(list_path, platform='auto'),'r') as fp:
     for path in fp.readlines():
       path = path.replace('\n','')
       status, local_path = download_azblob(url = path,

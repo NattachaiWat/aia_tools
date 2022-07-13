@@ -5,6 +5,7 @@ import json
 import argparse
 import shutil
 from tqdm import tqdm
+from pathvalidate import sanitize_filepath
 
 
 
@@ -37,7 +38,7 @@ def duplicate_images(images_filename: List, image_path: str, copy_str: str):
   for filename in images_filename:
     base, ext = os.path.splitext(filename)
     source_file = os.path.join(image_path,filename)
-    target_file = os.path.join(image_path,f'{base}_{copy_str}{ext}')
+    target_file = sanitize_filepath(os.path.join(image_path,f'{base}_{copy_str}{ext}'), platform='auto')
     if not os.path.exists(target_file):
       shutil.copyfile(source_file, target_file)
 

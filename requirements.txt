@@ -18,3 +18,7 @@ pytz==2022.1
 PyYAML==6.0
 six==1.16.0
 azure-mgmt-cosmosdb==6.4.0
+SQLAlchemy==1.4.23
+sqlitedict==1.7.0
+pytictoc==1.5.2
+pathvalidate==2.5.1

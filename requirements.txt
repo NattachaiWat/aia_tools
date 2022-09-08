@@ -10,6 +10,7 @@ azure-keyvault-keys==4.4.0
 azure-keyvault-secrets==4.3.0
 azure-storage-blob==12.8.1
 azure-storage-blob==12.8.1
+azure-mgmt-cosmosdb==6.4.0
 openpyxl==3.0.9
 numpy==1.23.0
 pymongo==4.1.1

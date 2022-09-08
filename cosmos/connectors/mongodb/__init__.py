@@ -72,6 +72,14 @@ class DB:
         #df = pd.DataFrame(list(cursor))
         result = dumps(list(cursor), ensure_ascii=False)
         return result
+    
+    def query_df(self, collection, cond):
+        col = self.mongo_client[self.database][collection]
+        cursor = col.find(cond)  # find by condition (dictionary type)
+        #df = pd.DataFrame(list(cursor))
+        # result = dumps(list(cursor), ensure_ascii=False)
+        result = pd.DataFrame(list(cursor))
+        return result
 
     def text_score(self, collection, field, text):
         col = self.mongo_client[self.database][collection]

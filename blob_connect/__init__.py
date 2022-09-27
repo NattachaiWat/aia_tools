@@ -20,6 +20,8 @@ BLOB_KEY = os.getenv("SECRET_2")
 
 CLIENT_ID = os.getenv("CLIENT_ID")
 STORAGE_ACCOUNT = os.getenv("STORAGE_ACCOUNT")
+default_credential = DefaultAzureCredential(managed_identity_client_id=CLIENT_ID)
+account_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net"
 
 CONNECTION_STRING = os.getenv('CONNECTION_STRING', None)
 
@@ -29,8 +31,6 @@ class AzureBlob:
             blob_account = os.getenv("BLOB_ACCOUNT")
             blob_key = os.getenv("BLOB_KEY")
             if CLIENT_ID is not None:
-                default_credential = DefaultAzureCredential(managed_identity_client_id=CLIENT_ID)
-                account_url = f"https://{STORAGE_ACCOUNT}.blob.core.windows.net"
                 self._BLOB_CLIENT = BlobServiceClient(account_url=account_url, credential=default_credential)
                 return
             elif blob_account is None or blob_key is None:
@@ -157,7 +157,7 @@ def upload_to_blob(container, blob, path_file):
     azure_blob = AzureBlob()
     #print(f'Uploading: {path_file}')
     success, blob_url = azure_blob.upload(container, blob, path_file)
-    #print(f'Uploaded: {blob_url} {success}')
+    print(f'Uploaded: {blob_url} {success}')
     return success, blob_url
 
 

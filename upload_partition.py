@@ -554,6 +554,7 @@ def main(args):
     partition_idx = [int(_idx) for _idx in args.partition_idx.split(',')] 
     az_crediential = args.az_crediential
     benchmark     = args.benchmark
+    benchmark_dbname = args.benchmark_dbname
     assert project_code in column_map, f'{project_code} is not found'
     
 
@@ -564,11 +565,11 @@ def main(args):
         excel_folder_az = '/'.join(['research','data',project_code,'excel'])
         image_folder_az = '/'.join(['research','data',project_code,'images'])
     else:
-        main_folder_az = '/'.join(['benchmark','data',project_code])
+        main_folder_az = '/'.join([f'{benchmark_dbname}','data',project_code])
         output_json_name = f'{project_code}.json'
-        output_json_folder_az = '/'.join(['benchmark','data','label_config'])
-        excel_folder_az = '/'.join(['benchmark','data',project_code,'excel'])
-        image_folder_az = '/'.join(['benchmark','data',project_code,'images'])
+        output_json_folder_az = '/'.join([f'{benchmark_dbname}','data','label_config'])
+        excel_folder_az = '/'.join([f'{benchmark_dbname}','data',project_code,'excel'])
+        image_folder_az = '/'.join([f'{benchmark_dbname}','data',project_code,'images'])
 
    
     
@@ -673,6 +674,7 @@ if __name__ == "__main__":
                             default=0, help='index of partition to upload (start from 0)')
     parser.add_argument('--az_crediential', type=str, default='None', help='')
     parser.add_argument('--benchmark',  action='store_true')
+    parser.add_argument('--benchmark_dbname', type=str, default = 'benchmark')
     args = parser.parse_args()
     partition_idx = [int(partition_idx) for partition_idx in args.partition_idx.split(',')] 
     for _idx in partition_idx:

@@ -10,8 +10,10 @@ import traceback
 from pathvalidate import sanitize_filepath
 
 parser = argparse.ArgumentParser(description='Download file from azure blob storage.')
-parser.add_argument('--save_path', type=str, default='.', help='')
-parser.add_argument('--url', type=str,  required = True, help='')
+parser.add_argument('--save_path', type=str,   required = True,  help='')
+parser.add_argument('--project_code',  type=str,   required = True,  help='')
+parser.add_argument('--commit_id',  type=str,   required = True,  help='')
+parser.add_argument('--excel_input', type=str,  required = True, help='input excel from download')
 args = parser.parse_args()
 
 
@@ -40,24 +42,30 @@ def download_azblob(url, local_path):
     #raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
     return True, save_file
 
+def load_input(filename):
+  
 
 
 if __name__ == '__main__':
-  print("save_path:", args.save_path)
-  print("url:", args.url)
+  print(f'project_code: {args.project_code}')
+  print(f'commit_id: {args.commit_id}')
+  print(f'save_path: {args.save_path}')
+  print(f'excel_input: {args.excel_input}')
+  # print("save_path:", args.save_path)
+  # print("url:", args.url)
 
-  status, list_path = download_azblob(url = args.url,
-                          local_path = args.save_path)
+  # status, list_path = download_azblob(url = args.url,
+  #                         local_path = args.save_path)
   
-  if status:
-    print(f"saved: {list_path}")
+  # if status:
+  #   print(f"saved: {list_path}")
 
-  with open(sanitize_filepath(list_path, platform='auto'),'r') as fp:
-    for path in fp.readlines():
-      path = path.replace('\n','')
-      status, local_path = download_azblob(url = path,
-                            local_path = args.save_path)
-      if status:
-        print(f"saved: {local_path}")
-      else:
-        print(f'Cannot download: {path}')
+  # with open(sanitize_filepath(list_path, platform='auto'),'r') as fp:
+  #   for path in fp.readlines():
+  #     path = path.replace('\n','')
+  #     status, local_path = download_azblob(url = path,
+  #                           local_path = args.save_path)
+  #     if status:
+  #       print(f"saved: {local_path}")
+  #     else:
+  #       print(f'Cannot download: {path}')

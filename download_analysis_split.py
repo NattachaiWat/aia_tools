@@ -58,6 +58,8 @@ def download_azblob(url, local_path):
 
 def load_input(filename, sheet_name, commit_id,
                start_time, stop_time):
+  
+  commit_id = commit_id.replace(" ","").split(",")
   assert os.path.exists(filename), f'{filename} is not exists'
   sheetnames = pd.read_excel(filename,  sheet_name = None,
                                 engine = 'openpyxl',
@@ -80,7 +82,7 @@ def load_input(filename, sheet_name, commit_id,
     created_time = datetime.strptime(pandas_data['created_time'][ind], '%Y-%m-%d %H:%M:%S')
 
       
-    if (commit_id == git_info['commit']) and (start_time<created_time) and (created_time < stop_date):
+    if (git_info['commit'] in commit_id) and (start_time<created_time) and (created_time < stop_date):
       print(f'{start_time} ---- {created_time} ---- {stop_date} ---- {git_info["commit"]}') 
       yield excel_path, git_info
     
@@ -113,7 +115,8 @@ if __name__ == '__main__':
   # make download path:
   zip_path=os.path.join(args.save_path,'result_zip')
   zip_temp=os.path.join(args.save_path,'temp_zip')
-  save_path=os.path.join(args.save_path,'outputs',f'{args.project_code}',f'{args.commit_id}')
+  commit_id_folder = '-'.join([s[:5] for s in args.commit_id.replace(" ","").split(",")])
+  save_path=os.path.join(args.save_path,'outputs',f'{args.project_code}',f'{commit_id_folder}')
   if os.path.exists(zip_temp):
     print(f'delete temp: {zip_temp}')
     shutil.rmtree(zip_temp, ignore_errors=True)

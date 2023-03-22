@@ -25,7 +25,7 @@ def download_azblob(url, local_path):
   save_file = os.path.join(local_path, endpoint)
   save_path = os.path.dirname(save_file)
   if not os.path.exists(save_path):
-    os.makedirs(save_path)
+    os.makedirs(save_path, exist_ok = True)
   
   conn = AzureBlob()
 

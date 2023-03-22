@@ -8,6 +8,7 @@ import json
 import traceback
 from pathvalidate import sanitize_filepath
 import zipfile
+import shutil
 
 
 parser = argparse.ArgumentParser(description='Download file from azure blob storage.')
@@ -36,6 +37,7 @@ def download_azblob(url, local_path):
   save_file = os.path.join(local_path, endpoint)
   save_path = os.path.dirname(save_file)
   os.makedirs(save_path, exist_ok = True)
+  
   
   conn = AzureBlob()
 
@@ -96,7 +98,12 @@ if __name__ == '__main__':
   # make download path:
   zip_path=os.path.join(args.save_path,'result_zip')
   zip_temp=os.path.join(args.save_path,'temp_zip')
+  save_path=os.path.join(args.save_path,'outputs',f'{args.project_code}',f'{args.commit_id}')
+  if os.path.exists(zip_temp):
+    print(f'delete temp: {zip_temp}')
+    shutil.rmtree(zip_temp, ignore_errors=True)
   os.makedirs(zip_temp, exist_ok=True)
+  os.makedirs(save_path, exist_ok=True)
 
 
   local_paths=[]
@@ -111,10 +118,48 @@ if __name__ == '__main__':
     with zipfile.ZipFile(zip_file, 'r') as zip_obj:
       zip_obj.extractall(zip_temp)
 
-  
+  summary_data = {'field_name':[],
+                  'eds':[],
+                  'accuracy': [],
+                  '#char': [],
+                  '#correct_char': []
+                }
+
   for fieldname in project_field_names[args.project_code]:
     search_filename=find_files(f'{fieldname}.csv',zip_temp)
-    print(search_filename)
+    merge_field_csv=os.path.join(save_path,f'{fieldname}.csv')
+    print(f'merging: {merge_field_csv}')
+    df = pd.concat((pd.read_csv(f, index_col=[0]) for f in search_filename), ignore_index=True)
+    df.to_csv(merge_field_csv)
+    summary_data['field_name'].append(fieldname)
+    summary_data['eds'].append(float(df['eds'].mean().round(decimals=4)))
+    summary_data['accuracy'].append(float(df['accuracy'].mean().round(decimals=4)))
+    summary_data['#char'].append(float(df['#char'].sum()))
+    summary_data['#correct_char'].append(float(df['#correct_char'].sum()))
+
+  print('Averaging')
+  pd_summary = pd.DataFrame(summary_data)
+  average_eds = pd_summary['eds'].mean().round(decimals=4)
+  average_acc = pd_summary['accuracy'].mean().round(decimals=4)
+  sum_char    = pd_summary['#char'].sum()
+  sum_correct_char = pd_summary['#correct_char'].sum()
+  char_acc    = sum_correct_char/sum_char
+
+
+  summary_data['field_name'].append('Averaging')
+  summary_data['eds'].append(average_eds)
+  summary_data['accuracy'].append(average_acc)
+  summary_data['#char'].append('')
+  summary_data['#correct_char'].append(char_acc)
+  
+  summary_data = pd.DataFrame(summary_data)
+  summary_filename_csv=os.path.join(save_path,f'summary_performance.csv')
+  print(f'Saving: {summary_filename_csv}')
+
+  summary_data.to_csv(summary_filename_csv)
+    
+    
+   
 
 
 

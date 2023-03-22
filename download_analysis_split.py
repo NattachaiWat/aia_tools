@@ -158,26 +158,3 @@ if __name__ == '__main__':
 
   summary_data.to_csv(summary_filename_csv)
     
-    
-   
-
-
-
-  # print("save_path:", args.save_path)
-  # print("url:", args.url)
-
-  # status, list_path = download_azblob(url = args.url,
-  #                         local_path = args.save_path)
-  
-  # if status:
-  #   print(f"saved: {list_path}")
-
-  # with open(sanitize_filepath(list_path, platform='auto'),'r') as fp:
-  #   for path in fp.readlines():
-  #     path = path.replace('\n','')
-  #     status, local_path = download_azblob(url = path,
-  #                           local_path = args.save_path)
-  #     if status:
-  #       print(f"saved: {local_path}")
-  #     else:
-  #       print(f'Cannot download: {path}')

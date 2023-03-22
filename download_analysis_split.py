@@ -9,6 +9,7 @@ import traceback
 from pathvalidate import sanitize_filepath
 import zipfile
 import shutil
+from datetime import datetime
 
 
 parser = argparse.ArgumentParser(description='Download file from azure blob storage.')
@@ -16,6 +17,8 @@ parser.add_argument('--save_path', type=str,   required = True,  help='')
 parser.add_argument('--project_code',  type=str,   required = True,  help='')
 parser.add_argument('--commit_id',  type=str,   required = True,  help='')
 parser.add_argument('--excel_input', type=str,  required = True, help='input excel from download')
+parser.add_argument('--start_date', type=str,  required = True, help='start date: in format YYYYMMDD-0000')
+parser.add_argument('--stop_date', type=str,  required = True, help='stop date: in format YYYYMMDD-0000')
 args = parser.parse_args()
 
 
@@ -53,7 +56,8 @@ def download_azblob(url, local_path):
     #raise ResourceNotFoundError(f"The specified {endpoint} does not exist.")
     return True, save_file
 
-def load_input(filename, sheet_name, commit_id):
+def load_input(filename, sheet_name, commit_id,
+               start_time, stop_time):
   assert os.path.exists(filename), f'{filename} is not exists'
   sheetnames = pd.read_excel(filename,  sheet_name = None,
                                 engine = 'openpyxl',
@@ -66,14 +70,18 @@ def load_input(filename, sheet_name, commit_id):
                             na_filter = False,
                             dtype=str)
   
-  check_col = ['excel', 'GIT_INFO']
+  check_col = ['created_time', 'excel', 'GIT_INFO']
   for c in check_col:
     assert c in pandas_data, f'{c} not found in columm.'
 
   for ind in pandas_data.index:
     excel_path = pandas_data['excel'][ind]
     git_info   = eval(pandas_data['GIT_INFO'][ind].replace("null","None"))
-    if commit_id == git_info['commit']:
+    created_time = datetime.strptime(pandas_data['created_time'][ind], '%Y-%m-%d %H:%M:%S')
+
+      
+    if (commit_id == git_info['commit']) and (start_time<created_time) and (created_time < stop_date):
+      print(f'{start_time} ---- {created_time} ---- {stop_date} ---- {git_info["commit"]}') 
       yield excel_path, git_info
     
 def find_files(filename, search_path):
@@ -89,10 +97,17 @@ def find_files(filename, search_path):
 
 
 if __name__ == '__main__':
+  print(f'Inputs: ')
   print(f'project_code: {args.project_code}')
   print(f'commit_id: {args.commit_id}')
   print(f'save_path: {args.save_path}')
   print(f'excel_input: {args.excel_input}')
+  print(f'start_date: {args.start_date}')
+  print(f'stop_date: {args.stop_date}')
+  start_date = datetime.strptime(args.start_date, '%Y%m%d-%H%M')
+  stop_date  = datetime.strptime(args.stop_date, '%Y%m%d-%H%M')
+  print(start_date)
+  print('='*10)
 
   assert args.project_code in project_field_names, f'{args.project_code} is not define in mapping'
   # make download path:
@@ -106,12 +121,15 @@ if __name__ == '__main__':
   os.makedirs(save_path, exist_ok=True)
 
 
+  # filter and download
   local_paths=[]
-  for excel_path, _ in load_input(args.excel_input, 'summary', args.commit_id):
+  for excel_path, _ in load_input(args.excel_input, 'summary', args.commit_id, start_date, stop_date):
     status, local_path = download_azblob(excel_path, zip_path)
     print(status, local_path )
     if status:
       local_paths.append(local_path)
+
+  assert len(local_paths) !=0, f'There is not date in {args.commit_id} {start_date} {stop_date}'
 
   # extract all file
   for zip_file in local_paths:

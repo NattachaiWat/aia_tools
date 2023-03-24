@@ -6,7 +6,7 @@ import argparse
 from urllib.parse import urlparse
 import json
 import traceback
-from pathvalidate import sanitize_filepath
+#from pathvalidate import sanitize_filepath
 import zipfile
 import shutil
 from datetime import datetime
@@ -47,7 +47,7 @@ def download_azblob(url, local_path):
   blob_container = conn._BLOB_CLIENT.get_container_client(container_name)
   try:
     file_content = blob_container.get_blob_client(endpoint).download_blob().readall()
-    save_file = sanitize_filepath(save_file, platform='auto')
+    #save_file = sanitize_filepath(save_file, platform='auto')
     with open(save_file, "wb") as file:
       file.write(file_content)
       return True, save_file
